@@ -1,6 +1,10 @@
 package main
 
-import "github.com/BurntSushi/toml"
+import (
+	"time"
+
+	"github.com/BurntSushi/toml"
+)
 
 type healthcheck_config struct {
 	Type   string
@@ -21,11 +25,11 @@ type HealthCheckBase struct {
 }
 
 type HealthCheck interface {
-	schedule()
+	run(app_state *AppState)
 	compile_config()
 }
 
-func (hcc healthcheck_config) compile_config(md toml.MetaData) HealthCheck {
+func (hcc *healthcheck_config) compile_config(md toml.MetaData) HealthCheck {
 	var new_hc HealthCheck
 
 	logger.Info.Printf("      HealthCheck '%s'", hcc.Type)
@@ -49,12 +53,21 @@ func (hcc healthcheck_config) compile_config(md toml.MetaData) HealthCheck {
 	return new_hc
 }
 
-func (hc HealthCheckBase) compile_config() {
+func (hc *HealthCheckBase) compile_config() {
 	logger.Info.Printf("       General parameters:")
 	logger.Info.Printf("       - Interval: '%d'", hc.Interval)
 	logger.Info.Printf("       - MaxFfailed: '%d'", hc.Max_Failed)
 }
 
-func (hc HealthCheckBase) schedule() {
-	logger.Debug.Printf("Scheduling HC %s", hc.Type)
+func (hc *HealthCheckBase) run(app_state *AppState) {
+	app_state.wg.Add(1)
+	go func() {
+		for app_state.checks_running == true {
+			logger.Info.Printf("HC %v running", hc)
+			time.Sleep(1 * time.Second)
+			logger.Info.Printf("HC %v finished", hc)
+			time.Sleep(1 * time.Second)
+		}
+		app_state.wg.Done()
+	}()
 }
