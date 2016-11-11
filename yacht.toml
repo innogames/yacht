@@ -1,0 +1,33 @@
+[[lb_pool]]
+    name = "kajetan-test-aw"
+    ip_address = "42.0.0.1"
+
+    [[lb_pool.healthcheck]]
+        type = "http"
+        [lb_pool.healthcheck.config]
+            interval = 5
+            max_failed = 5
+            host="test.com"
+            url="/test.php"
+            ok_codes=[200,301]
+
+    [[lb_pool.healthcheck]]
+        type = "ping"
+        [lb_pool.healthcheck.config]
+            interval = 2
+            max_failed = 3
+
+    [[lb_pool.lb_node]]
+        name = "testvm1"
+        ip_address = "10.0.0.1"
+
+    [[lb_pool.lb_node]]
+        name = "testvm2"
+        ip_address = "10.0.0.2"
+
+        [[lb_pool.lb_node.healthcheck]]
+            type = "ping"
+            [lb_pool.lb_node.healthcheck.config]
+                interval = 1
+                max_failed = 1
+
