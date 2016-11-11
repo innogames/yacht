@@ -31,3 +31,12 @@
                 interval = 1
                 max_failed = 1
 
+        [[lb_pool.lb_node.healthcheck]]
+            type = "script"
+            [lb_pool.lb_node.healthcheck.config]
+                interval = 1
+                max_failed = 1
+                script = "/usr/local/bin/myscript.sh"
+
+
+

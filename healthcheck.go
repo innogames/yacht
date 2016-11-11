@@ -34,6 +34,8 @@ func (hcc healthcheck_config) compile_config(md toml.MetaData) HealthCheck {
 		new_hc = new(HealthCheck_http)
 	case "ping":
 		new_hc = new(HealthCheck_ping)
+	case "script":
+		new_hc = new(HealthCheck_script)
 	default:
 		logger.Error.Printf("          Unknown HealthCheck type %q", hcc.Type)
 		return nil
