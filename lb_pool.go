@@ -1,6 +1,9 @@
 package main
 
-import "github.com/BurntSushi/toml"
+import (
+	"github.com/BurntSushi/toml"
+//	"github.com/Syncbak-Git/nsca"
+)
 
 type LB_Pool struct {
 	// Parameters filled in during initializiation
@@ -33,4 +36,16 @@ func (lb_pool LB_Pool) schedule_healthchecks() {
 	//	for _, lb_node := range lb_pool.LB_Node {
 	//		lb_node.schedule_healthchecks()
 	///	}
+}
+
+func (lb_pool LB_Pool) notifyNagios() {
+
+/*
+	message := nsca.Message{State: nsca.STATE_OK, Host: "LB_pool_name", Service: "check_loadbalancer", Message: "All ok"}
+	nagios_connection.messages <- message
+ */
+
+
+	//logger.Debug.Printf("Sending NSCA %s", hc.Type)
+
 }
