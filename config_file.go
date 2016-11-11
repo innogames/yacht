@@ -15,22 +15,4 @@ func (config ConfigHead) compile_config(md toml.MetaData) {
 	}
 }
 
-// load_config loads configuration from given toml configuration file.
-// After loading the file configuration is also compiled.
-// It returns pointer to loaded and compiled configuration.
-func load_config(app_state *AppState) *ConfigHead {
-	var conf ConfigHead
 
-	logger.Info.Printf("Loading configuration from %s", app_state.config_file)
-
-	md, err := toml.DecodeFile(app_state.config_file, &conf)
-	if err != nil {
-		logger.Error.Println(err)
-		return nil
-	}
-
-	logger.Debug.Println("Loaded configuration:")
-	conf.compile_config(md)
-
-	return &conf
-}
