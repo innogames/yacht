@@ -34,3 +34,9 @@ func (lb_pool *LB_Pool) run_healthchecks(app_state *AppState) {
 		lb_pool.LB_Node[i].run_healthchecks(app_state)
 	}
 }
+
+func (lb_pool *LB_Pool) stop_healthchecks() {
+	for i, _ := range lb_pool.LB_Node {
+		lb_pool.LB_Node[i].stop_healthchecks()
+	}
+}
