@@ -14,5 +14,3 @@ func (config ConfigHead) compile_config(md toml.MetaData) {
 		config.LB_Pool[i].compile_config(md)
 	}
 }
-
-

@@ -1,15 +1,14 @@
 package main
 
-
 import (
 	"flag"
-	"os"
-	"os/signal"
-	"syscall"
+	"github.com/BurntSushi/toml"
 	"io"
 	"io/ioutil"
 	"log"
-	"github.com/BurntSushi/toml"
+	"os"
+	"os/signal"
+	"syscall"
 
 	"sync"
 )
@@ -118,4 +117,3 @@ func (app_state *AppState) main_loop() {
 		config = nil
 	}
 }
-
