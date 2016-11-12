@@ -2,7 +2,7 @@ package main
 
 type HealthCheck_script struct {
 	HealthCheckBase
-	Script  string
+	Script string
 }
 
 func (hc HealthCheck_script) compile_config() {
