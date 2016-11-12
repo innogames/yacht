@@ -24,3 +24,9 @@ func (lb_node *LB_Node) run_healthchecks(app_state *AppState) {
 		lb_node.HealthChecks[i].run(app_state)
 	}
 }
+
+func (lb_node *LB_Node) stop_healthchecks() {
+	for i, _ := range lb_node.HealthChecks {
+		lb_node.HealthChecks[i].stop()
+	}
+}

@@ -21,11 +21,12 @@ type HealthCheckBase struct {
 	Max_Nodes        int
 
 	// Variables filled in later
-	running bool
+	stopchan chan bool
 }
 
 type HealthCheck interface {
 	run(app_state *AppState)
+	stop()
 	compile_config()
 }
 
@@ -60,14 +61,25 @@ func (hc *HealthCheckBase) compile_config() {
 }
 
 func (hc *HealthCheckBase) run(app_state *AppState) {
+	// Increase counter of running HealthChecks
+	hc.stopchan = make(chan bool)
+
 	app_state.wg.Add(1)
+
 	go func() {
-		for app_state.checks_running == true {
-			logger.Info.Printf("HC %v running", hc)
-			time.Sleep(1 * time.Second)
-			logger.Info.Printf("HC %v finished", hc)
-			time.Sleep(1 * time.Second)
+		defer app_state.wg.Done()
+
+		for {
+			select {
+			case <-hc.stopchan:
+				return
+			case <-time.After(time.Second * time.Duration(hc.Interval)):
+				logger.Info.Printf("HC %v Running", hc)
+			}
 		}
-		app_state.wg.Done()
 	}()
+}
+
+func (hc *HealthCheckBase) stop() {
+	hc.stopchan <- true
 }

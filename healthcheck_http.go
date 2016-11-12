@@ -18,3 +18,7 @@ func (hc *HealthCheck_http) compile_config() {
 func (hc *HealthCheck_http) run(app_state *AppState) {
 	hc.HealthCheckBase.run(app_state)
 }
+
+func (hc *HealthCheck_http) stop() {
+	hc.HealthCheckBase.stop()
+}

@@ -2,13 +2,14 @@ package main
 
 import (
 	"flag"
-	"github.com/BurntSushi/toml"
 	"io"
 	"io/ioutil"
 	"log"
 	"os"
 	"os/signal"
 	"syscall"
+
+	"github.com/BurntSushi/toml"
 
 	"sync"
 )
@@ -21,12 +22,12 @@ var logger struct {
 }
 
 type AppState struct {
-	config_file     string
-	verbose         bool
-	no_action       bool
-	checks_running  bool
-	program_running bool
-	wg              *sync.WaitGroup
+	config_file       string
+	verbose           bool
+	no_action         bool
+	stop_healthchecks chan bool
+	program_running   bool
+	wg                *sync.WaitGroup
 }
 
 func (app_state *AppState) init_flags() {
@@ -38,6 +39,7 @@ func (app_state *AppState) init_flags() {
 
 func (app_state *AppState) init_signals() {
 	c := make(chan os.Signal, 1)
+	app_state.stop_healthchecks = make(chan bool)
 
 	signal.Notify(c, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
 
@@ -46,17 +48,16 @@ func (app_state *AppState) init_signals() {
 			sig := <-c
 			switch sig {
 			case syscall.SIGINT:
-				app_state.checks_running = false
+				app_state.stop_healthchecks <- true
 				app_state.program_running = false
 			case syscall.SIGTERM:
+				app_state.stop_healthchecks <- true
 				app_state.program_running = false
-				app_state.checks_running = false
 			case syscall.SIGHUP:
-				app_state.checks_running = false
+				app_state.stop_healthchecks <- true
 			}
 		}
 	}()
-
 }
 
 func (app_state *AppState) init_logger() {
@@ -102,17 +103,34 @@ func (app_state *AppState) main_loop() {
 
 	for app_state.program_running == true {
 		config := app_state.load_config()
-		app_state.checks_running = true
 
 		if config == nil {
-			logger.Error.Println("Configuration file was not loaded or parsed")
+			logger.Error.Println("Configuration file was not loaded or it was impossible to parse")
+			app_state.program_running = false
 		} else {
+
+			// Start all healthchecks.
+			// They are goroutines and don't block this thread, hence the WaitGroup and Wait() below.
 			app_state.wg = new(sync.WaitGroup)
 			for i, _ := range config.LB_Pool {
 				config.LB_Pool[i].run_healthchecks(app_state)
 			}
+
+			// Wait for a channel message which will terminate all running checks.
+			select {
+			case <-app_state.stop_healthchecks:
+				// Send stop_healthchecks message to all healthchecks
+				for i, _ := range config.LB_Pool {
+					config.LB_Pool[i].stop_healthchecks()
+				}
+			}
+
+			// Wait for healthchecks to be really finished.
+			// They must finish talking to servers of loadbalancer before this program is terminated.
+			// This is waiting for wg counter to reach 0.
 			app_state.wg.Wait()
 		}
+
 		// Will garbage collector remove it?
 		config = nil
 	}

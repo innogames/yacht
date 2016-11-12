@@ -12,3 +12,7 @@ func (hc *HealthCheck_ping) compile_config() {
 func (hc *HealthCheck_ping) run(app_state *AppState) {
 	hc.HealthCheckBase.run(app_state)
 }
+
+func (hc *HealthCheck_ping) stop() {
+	hc.HealthCheckBase.stop()
+}
