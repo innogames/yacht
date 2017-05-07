@@ -3,7 +3,6 @@ package healthcheck
 import (
 	"github.com/innogames/yacht/logger"
 	"sync"
-	"time"
 )
 
 // JSONMap is a shortcut for a JSON dictionary.
@@ -11,24 +10,11 @@ type JSONMap map[string]interface{}
 
 // HealthCheck defines which functions must every type of healthcheck implement.
 type HealthCheck interface {
-	Run(wg *sync.WaitGroup)
+	run(wg *sync.WaitGroup)
 	Stop()
 }
 
-// HealthCheck is a structure holding properties shared between all healthcheck types.
-type HealthCheckBase struct {
-	hcType         string
-	interval       int
-	maxFailed      int
-	minNodes       int
-	minNodesAction string
-	maxNodes       int
-
-	stopChan chan bool
-	HealthCheck
-}
-
-func NewHealthCheck(json JSONMap) *HealthCheck {
+func NewHealthCheck(wg *sync.WaitGroup, json JSONMap) *HealthCheck {
 	hctype := json["type"].(string)
 
 	var hc HealthCheck
@@ -47,29 +33,8 @@ func NewHealthCheck(json JSONMap) *HealthCheck {
 		return nil
 	}
 
+	wg.Add(1) // Increase counter of running Healtthishecks
+	go hc.run(wg)
+
 	return &hc
-}
-
-func (this HealthCheckBase) Run(wg *sync.WaitGroup) {
-	// Increase counter of running Healtthishecks
-	this.stopChan = make(chan bool)
-
-	wg.Add(1)
-
-	go func() {
-		defer wg.Done()
-
-		for {
-			select {
-			case <-this.stopChan:
-				return
-			case <-time.After(time.Second * time.Duration(this.interval)):
-				logger.Info.Printf("this %v Running", this)
-			}
-		}
-	}()
-}
-
-func (this HealthCheckBase) Stop() {
-	this.stopChan <- true
 }

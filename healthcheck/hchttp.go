@@ -16,7 +16,9 @@ type HCHttp struct {
 // NewHCHttp creates new HTTP or HTTPs healthcheck struct and populates it with data from Json config
 func newHCHttp(json JSONMap) *HCHttp {
 	hc := new(HCHttp)
+	hc.HealthCheckBase.configure(json)
 	hc.hcType = json["type"].(string)
+
 	if host, ok := json["host"].(string); ok {
 		hc.host = host
 	}
@@ -31,10 +33,10 @@ func newHCHttp(json JSONMap) *HCHttp {
 	return hc
 }
 
-func (this HCHttp) Run(wg *sync.WaitGroup) {
-	this.HealthCheckBase.Run(wg)
+func (this *HCHttp) run(wg *sync.WaitGroup) {
+	this.HealthCheckBase.run(wg)
 }
 
-func (this HCHttp) Stop() {
+func (this *HCHttp) Stop() {
 	this.HealthCheckBase.Stop()
 }

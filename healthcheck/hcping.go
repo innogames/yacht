@@ -14,15 +14,16 @@ type HCPing struct {
 // NewHCPing creates new ping healthcheck struct and populates it with data from Json config.
 func newHCPing(json JSONMap) *HCPing {
 	hc := new(HCPing)
+	hc.HealthCheckBase.configure(json)
 	hc.hcType = json["type"].(string)
 	logger.Info.Printf("healthcheck: %s", hc.hcType)
 	return hc
 }
 
-func (this HCPing) Run(wg *sync.WaitGroup) {
-	this.HealthCheckBase.Run(wg)
+func (this *HCPing) run(wg *sync.WaitGroup) {
+	this.HealthCheckBase.run(wg)
 }
 
-func (this HCPing) Stop() {
+func (this *HCPing) Stop() {
 	this.HealthCheckBase.Stop()
 }
