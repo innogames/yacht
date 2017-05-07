@@ -6,16 +6,13 @@ import (
 	"sync"
 )
 
-type JSONMap map[string]interface{}
-type JSONList []interface{}
-
 type LBNode struct {
 	name         string
 	ipAddress    string
 	healthChecks []*healthcheck.HealthCheck
 }
 
-func newLBNode(proto string, name string, nodeConfig JSONMap, hcConfigs []interface{}) *LBNode {
+func newLBNode(proto string, name string, nodeConfig map[string]interface{}, hcConfigs []interface{}) *LBNode {
 	ipAddress := nodeConfig[proto]
 	if ipAddress == nil {
 		return nil

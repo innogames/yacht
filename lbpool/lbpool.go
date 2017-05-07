@@ -11,7 +11,7 @@ type LBPool struct {
 	lbNodes   []*LBNode
 }
 
-func NewLBPool(proto string, name string, json JSONMap) *LBPool {
+func NewLBPool(proto string, name string, json map[string]interface{}) *LBPool {
 	ipAddress := json[proto]
 	if ipAddress == nil {
 		return nil

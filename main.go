@@ -13,8 +13,6 @@ import (
 	"github.com/innogames/yacht/logger"
 )
 
-type JsonMap map[string]interface{}
-
 type AppState struct {
 	config_file       string
 	verbose           bool
@@ -68,7 +66,7 @@ func (app_state *AppState) load_config() []*lbpool.LBPool {
 		return nil
 	}
 
-	var json_config JsonMap
+	var json_config map[string]interface{}
 	json.Unmarshal(file, &json_config)
 
 	logger.Debug.Printf("Json loaded, parsing it")
