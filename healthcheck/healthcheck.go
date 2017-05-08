@@ -14,6 +14,8 @@ type HealthCheck interface {
 	Stop()
 }
 
+// NewHealthCheck is an object factory returning a proper HealtCheck object depending
+// in configuration it reads from JSON and starts its main goroutine.
 func NewHealthCheck(wg *sync.WaitGroup, json JSONMap) *HealthCheck {
 	hctype := json["type"].(string)
 

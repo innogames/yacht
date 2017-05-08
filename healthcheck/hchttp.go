@@ -7,7 +7,7 @@ import (
 
 // HCHttp stores all properties of a HTTP or HTTPS healthcheck.
 type HCHttp struct {
-	HealthCheckBase
+	Base
 	host    string
 	url     string
 	okCodes []int
@@ -16,7 +16,7 @@ type HCHttp struct {
 // NewHCHttp creates new HTTP or HTTPs healthcheck struct and populates it with data from Json config
 func newHCHttp(json JSONMap) *HCHttp {
 	hc := new(HCHttp)
-	hc.HealthCheckBase.configure(json)
+	hc.Base.configure(json)
 	hc.hcType = json["type"].(string)
 
 	if host, ok := json["host"].(string); ok {
@@ -33,10 +33,12 @@ func newHCHttp(json JSONMap) *HCHttp {
 	return hc
 }
 
-func (this *HCHttp) run(wg *sync.WaitGroup) {
-	this.HealthCheckBase.run(wg)
+// run starts operation of this healthcheck, in fact it calls the Base class.
+func (hc *HCHttp) run(wg *sync.WaitGroup) {
+	hc.Base.run(wg)
 }
 
-func (this *HCHttp) Stop() {
-	this.HealthCheckBase.Stop()
+// Stop terminates this healthcheck, in fact it calls the Base class.
+func (hc *HCHttp) Stop() {
+	hc.Base.Stop()
 }

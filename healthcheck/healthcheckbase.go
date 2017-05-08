@@ -7,8 +7,8 @@ import (
 	"time"
 )
 
-// HealthCheck is a structure holding properties shared between all healthcheck types.
-type HealthCheckBase struct {
+// Base is a structure holding properties shared between all healthcheck types.
+type Base struct {
 	// Properties
 	hcType         string
 	interval       int
@@ -26,36 +26,41 @@ type HealthCheckBase struct {
 }
 
 // configure sets up base properties of a healthcheck with reasonable defaults.
-func (this *HealthCheckBase) configure(json JSONMap) {
-	this.stopChan = make(chan bool)
+func (hcb *Base) configure(json JSONMap) {
+	hcb.stopChan = make(chan bool)
 
 	// FIXME: fix it in lbadmin
 	// Miminal interval is 1s.
-	this.interval, _ = strconv.Atoi(json["interval"].(string))
-	if this.interval < 1 {
-		this.interval = 1
+	hcb.interval, _ = strconv.Atoi(json["interval"].(string))
+	if hcb.interval < 1 {
+		hcb.interval = 1
 	}
 
 	// Minimal timeout is 1s.
-	if this.timeout < 1000 {
-		this.timeout = 1000
+	if hcb.timeout < 1000 {
+		hcb.timeout = 1000
 	}
 
 }
 
-func (this *HealthCheckBase) run(wg *sync.WaitGroup) {
+// run starts operation of a healthcheck. It is an endless loop running in a goroutine
+// which performs the real checking operation in scheduled time intervals. It can be
+// terminated by sending a boolean over stopChan.
+func (hcb *Base) run(wg *sync.WaitGroup) {
 	defer wg.Done()
 
 	for {
 		select {
-		case <-this.stopChan:
+		case <-hcb.stopChan:
 			return
-		case <-time.After(time.Second * time.Duration(this.interval)):
-			logger.Info.Printf("this %v Running", this)
+		case <-time.After(time.Second * time.Duration(hcb.interval)):
+			logger.Info.Printf("this %v Running", hcb)
 		}
 	}
 }
 
-func (this *HealthCheckBase) Stop() {
-	this.stopChan <- true
+// Stop terminates this healthcheck. It works by sending a boolean over stopChan
+// to the main goroutine of this check.
+func (hcb *Base) Stop() {
+	hcb.stopChan <- true
 }

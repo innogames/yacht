@@ -6,6 +6,8 @@ import (
 	"sync"
 )
 
+// LBNode represents one of nodes serving traffic in a loadbalancer. Here it stores
+// values which are used by all Healthchecks.
 type LBNode struct {
 	// Properties
 	name      string
@@ -39,11 +41,11 @@ func newLBNode(wg *sync.WaitGroup, proto string, name string, nodeConfig map[str
 }
 
 // Run is the main loop of LB Node. It receives messages from parent and children.
-func (this *LBNode) run() {
+func (lbn *LBNode) run() {
 	for {
 		select {
 		// Message from parent (LB Pool): stop running.
-		case <-this.stopChan:
+		case <-lbn.stopChan:
 			return
 		}
 	}
@@ -51,9 +53,9 @@ func (this *LBNode) run() {
 
 // Stop terminates operation of this LB Node. It does it in proper order:
 // first it terminates operation of all children and then of itself.
-func (this *LBNode) stop() {
-	for _, hc := range this.healthChecks {
+func (lbn *LBNode) stop() {
+	for _, hc := range lbn.healthChecks {
 		(*hc).Stop()
 	}
-	this.stopChan <- true
+	lbn.stopChan <- true
 }

@@ -5,6 +5,7 @@ import (
 	"sync"
 )
 
+// LBPool represents the object which receives the traffic and balances it between nodes.
 type LBPool struct {
 	// Properties
 	name      string
@@ -16,6 +17,8 @@ type LBPool struct {
 	stopChan chan bool
 }
 
+// NewLBPool is a object factory which creates new LBPool using configuration from JSON.
+// The object's main goroutine is also started here.
 func NewLBPool(wg *sync.WaitGroup, proto string, name string, json map[string]interface{}) *LBPool {
 	ipAddress := json[proto]
 	if ipAddress == nil {
@@ -47,12 +50,12 @@ func NewLBPool(wg *sync.WaitGroup, proto string, name string, json map[string]in
 }
 
 // Run is the main loop of LB Pool.
-func (this *LBPool) run() {
+func (lbp *LBPool) run() {
 
 	for {
 		select {
 		// Message from parent (main program): stop running.
-		case <-this.stopChan:
+		case <-lbp.stopChan:
 			return
 		}
 	}
@@ -60,9 +63,9 @@ func (this *LBPool) run() {
 
 // Stop terminates operation of this LB Pool. It does it in proper order:
 // first it terminates operation of all children and then of itself.
-func (this *LBPool) Stop() {
-	for _, lbNode := range this.lbNodes {
+func (lbp *LBPool) Stop() {
+	for _, lbNode := range lbp.lbNodes {
 		lbNode.stop()
 	}
-	this.stopChan <- true
+	lbp.stopChan <- true
 }

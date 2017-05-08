@@ -14,34 +14,35 @@ import (
 	"github.com/innogames/yacht/logger"
 )
 
+// AppState holds some variables which otherwise would be considered global.
 type AppState struct {
 	//  commandline paramters
-	verbose   bool
-	no_action bool
+	verbose  bool
+	noAction bool
 
 	// configuration
-	config_file string
-	config      *map[string]interface{}
+	configFile string
+	config     *map[string]interface{}
 
 	// program operation
-	stop_healthchecks chan bool
-	program_running   bool
-	wg                *sync.WaitGroup
+	stopHealthChecks chan bool
+	programRunning   bool
+	wg               *sync.WaitGroup
 
 	// LB Pools
 	lbPools []*lbpool.LBPool
 }
 
-func (this *AppState) init_flags() {
-	flag.StringVar(&this.config_file, "c", "/etc/iglb/iglb.json", "Location of confguration file")
-	flag.BoolVar(&this.verbose, "v", false, "Be verbose, e.g. show every healhcheck")
-	flag.BoolVar(&this.no_action, "n", false, "Do not perform any pfctl actions")
+func (appState *AppState) initFlags() {
+	flag.StringVar(&appState.configFile, "c", "/etc/iglb/iglb.json", "Location of confguration file")
+	flag.BoolVar(&appState.verbose, "v", false, "Be verbose, e.g. show every healhcheck")
+	flag.BoolVar(&appState.noAction, "n", false, "Do not perform any pfctl actions")
 	flag.Parse()
 }
 
-func (this *AppState) init_signals() {
+func (appState *AppState) initSignals() {
 	c := make(chan os.Signal, 1)
-	this.stop_healthchecks = make(chan bool)
+	appState.stopHealthChecks = make(chan bool)
 
 	signal.Notify(c, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
 
@@ -50,100 +51,102 @@ func (this *AppState) init_signals() {
 			sig := <-c
 			switch sig {
 			case syscall.SIGINT:
-				this.program_running = false
-				this.stop_healthchecks <- true
+				appState.programRunning = false
+				appState.stopHealthChecks <- true
 			case syscall.SIGTERM:
-				this.program_running = false
-				this.stop_healthchecks <- true
+				appState.programRunning = false
+				appState.stopHealthChecks <- true
 			case syscall.SIGHUP:
-				this.stop_healthchecks <- true
+				appState.stopHealthChecks <- true
 			}
 		}
 	}()
 }
 
 // loadConfig opens a JSON file, unmarshalls it and stores configuration in AppState.
-func (this *AppState) loadConfig() {
-	logger.Info.Printf("Loading configuration from %s", this.config_file)
+func (appState *AppState) loadConfig() {
+	logger.Info.Printf("Loading configuration from %s", appState.configFile)
 
-	file, e := ioutil.ReadFile(this.config_file)
+	file, e := ioutil.ReadFile(appState.configFile)
 	if e != nil {
 		logger.Error.Printf("Unable to open config file: %v\n", e)
-		this.config = nil
+		appState.config = nil
 	}
 
-	this.config = new(map[string]interface{})
-	json.Unmarshal(file, this.config)
+	appState.config = new(map[string]interface{})
+	json.Unmarshal(file, appState.config)
 }
 
-// runLBPools materializes LB Pools from configuration stored in AppState.
-// LBPools upon creation return only a channel that allows to stop them.
-func (this *AppState) runLBPools() {
+// runLBPools materializes LB Pools from configuration in AppState.
+// Each of LB Pools will then run as a goroutine.
+func (appState *AppState) runLBPools() {
 
 	// Ensure that configuration was loaded correctly
-	if this.config == nil {
+	if appState.config == nil {
 		logger.Error.Printf("No LB Pools found in config!")
 		time.Sleep(1 * time.Second)
 		return
 	}
 
 	logger.Debug.Printf("Starting LB Pools")
-	if lb_pools, ok := (*this.config)["lbpools"].(map[string]interface{}); ok {
-		for pool_k, pool_v := range lb_pools {
-			pool_map := pool_v.(map[string]interface{})
+	if lbPools, ok := (*appState.config)["lbpools"].(map[string]interface{}); ok {
+		for poolName, poolConfig := range lbPools {
+			poolConfigMap := poolConfig.(map[string]interface{})
 			// For each LB Pool found in configuration file try to spawn a new
 			// LBPool object both for IPv4 and IPv6. Nothing will be spanw if
 			// LB Pool has no configured IP address for given protocol.
-			if lbPool := lbpool.NewLBPool(this.wg, "ip4", pool_k, pool_map); lbPool != nil {
-				this.lbPools = append(this.lbPools, lbPool)
+			if lbPool := lbpool.NewLBPool(appState.wg, "ip4", poolName, poolConfigMap); lbPool != nil {
+				appState.lbPools = append(appState.lbPools, lbPool)
 			}
-			if lbPool := lbpool.NewLBPool(this.wg, "ip6", pool_k, pool_map); lbPool != nil {
-				this.lbPools = append(this.lbPools, lbPool)
+			if lbPool := lbpool.NewLBPool(appState.wg, "ip6", poolName, poolConfigMap); lbPool != nil {
+				appState.lbPools = append(appState.lbPools, lbPool)
 			}
 		}
 	}
 	logger.Debug.Printf("All LB Pools started")
 }
 
-// main_loop schedules healthchecks to be run as long as this.running is true
-func (this *AppState) main_loop() {
+// mainLoop of the whole program. It loads configuration, creates all LB Pools,
+// runs them and awaits them to finish working. After that loads the config again
+// and repeats the whole process.
+func (appState *AppState) mainLoop() {
 
-	this.program_running = true
+	appState.programRunning = true
 
 	logger.Debug.Println("Entering main loop")
 
-	for this.program_running == true {
+	for appState.programRunning == true {
 
 		// Prepare the wait group
-		this.wg = new(sync.WaitGroup)
+		appState.wg = new(sync.WaitGroup)
 
 		// Load configuration and run loaded LB Pools.
-		this.loadConfig()
-		this.runLBPools()
+		appState.loadConfig()
+		appState.runLBPools()
 
 		// Wait for a channel message which will terminate all running checks.
 		select {
-		case <-this.stop_healthchecks:
-			for _, lbPool := range this.lbPools {
+		case <-appState.stopHealthChecks:
+			for _, lbPool := range appState.lbPools {
 				lbPool.Stop()
 			}
 		}
 		// Wait for healthchecks to be really finished.
 		// This means: wait for wg counter to reach 0.
-		this.wg.Wait()
+		appState.wg.Wait()
 	}
 }
 
 func main() {
 	var appState AppState
 
-	appState.init_flags()
+	appState.initFlags()
 	logger.InitLoggers(appState.verbose)
 
 	logger.Info.Println("Yet Another Checking Health Tool starting")
 
-	appState.init_signals()
-	appState.main_loop()
+	appState.initSignals()
+	appState.mainLoop()
 
 	logger.Info.Println("Finished, good bye!")
 }
