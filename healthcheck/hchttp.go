@@ -73,7 +73,7 @@ func (hc *HCHttp) do(hcr chan (Result)) context.CancelFunc {
 	}
 
 	// Build HTTP request
-	req, err := http.NewRequest("HEAD", "http://"+hc.HCBase.ipAddress+hc.url, nil)
+	req, err := http.NewRequest("HEAD", hc.hcType+"://"+hc.HCBase.ipAddress+hc.url, nil)
 	if err != nil {
 		logger.Error.Printf(hc.logPrefix + err.Error())
 		return nil
