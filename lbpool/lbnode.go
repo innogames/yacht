@@ -1,6 +1,7 @@
 package lbpool
 
 import (
+	"fmt"
 	"github.com/innogames/yacht/healthcheck"
 	"github.com/innogames/yacht/logger"
 	"sync"
@@ -14,26 +15,29 @@ type LBNode struct {
 	ipAddress string
 
 	// Communication
+	logPrefix    string
 	stopChan     chan bool
 	healthChecks []*healthcheck.HealthCheck
 }
 
-func newLBNode(wg *sync.WaitGroup, proto string, name string, nodeConfig map[string]interface{}, hcConfigs []interface{}) *LBNode {
-	ipAddress := nodeConfig[proto]
-	if ipAddress == nil {
+func newLBNode(wg *sync.WaitGroup, logPrefix string, proto string, name string, nodeConfig map[string]interface{}, hcConfigs []interface{}) *LBNode {
+	if nodeConfig[proto] == nil {
 		return nil
 	}
+	ipAddress := nodeConfig[proto].(string)
 
 	// Initialize new LB Node
 	lbNode := new(LBNode)
+	lbNode.logPrefix = fmt.Sprintf(logPrefix+"lb_node: %s ", name)
 	lbNode.stopChan = make(chan bool)
-	logger.Info.Printf("lb_node: %s, ip_ddress: %s, action: create", name, ipAddress)
+
+	logger.Info.Printf(lbNode.logPrefix + "created")
 
 	// Run this node before healthchecks are created. They might send messages immediately!
 	go lbNode.run()
 
 	for _, hcConfig := range hcConfigs {
-		hc := healthcheck.NewHealthCheck(wg, hcConfig.(map[string]interface{}))
+		hc := healthcheck.NewHealthCheck(wg, lbNode.logPrefix, hcConfig.(map[string]interface{}), ipAddress)
 		lbNode.healthChecks = append(lbNode.healthChecks, hc)
 	}
 

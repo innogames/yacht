@@ -1,6 +1,7 @@
 package lbpool
 
 import (
+	"fmt"
 	"github.com/innogames/yacht/logger"
 	"sync"
 )
@@ -13,8 +14,9 @@ type LBPool struct {
 	lbNodes   []*LBNode
 
 	// Communication
-	wg       *sync.WaitGroup
-	stopChan chan bool
+	logPrefix string
+	wg        *sync.WaitGroup
+	stopChan  chan bool
 }
 
 // NewLBPool is a object factory which creates new LBPool using configuration from JSON.
@@ -30,7 +32,8 @@ func NewLBPool(wg *sync.WaitGroup, proto string, name string, json map[string]in
 	lbPool.stopChan = make(chan bool)
 	lbPool.name = name
 	lbPool.ipAddress = ipAddress.(string)
-	logger.Info.Printf("lb_pool: %s, ip_address: %s, action: create", lbPool.name, lbPool.ipAddress)
+	lbPool.logPrefix = fmt.Sprintf("lb_pool: %s ", lbPool.name)
+	logger.Info.Printf(lbPool.logPrefix + "created")
 
 	// Configuration of Healthchecks for this LB Pool will be passed to all nodes.
 	// They will make their own HealthChecks from it.
@@ -42,7 +45,7 @@ func NewLBPool(wg *sync.WaitGroup, proto string, name string, json map[string]in
 	// Create LB Nodes for this LB Pool
 	nodes := json["nodes"].(map[string]interface{})
 	for nodeName, nodeConfig := range nodes {
-		lbnode := newLBNode(wg, proto, nodeName, nodeConfig.(map[string]interface{}), hcConfigs.([]interface{}))
+		lbnode := newLBNode(wg, lbPool.logPrefix, proto, nodeName, nodeConfig.(map[string]interface{}), hcConfigs.([]interface{}))
 		lbPool.lbNodes = append(lbPool.lbNodes, lbnode)
 	}
 
