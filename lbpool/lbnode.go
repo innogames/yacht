@@ -78,7 +78,11 @@ func (lbn *LBNode) run(wg *sync.WaitGroup) {
 			} else {
 				lbn.okHCs--
 			}
-			logger.Info.Printf(lbn.logPrefix+"hc is now %s", hcState)
+			if lbn.okHCs == len(lbn.healthChecks) {
+				logger.Info.Printf(lbn.logPrefix + "up")
+			} else {
+				logger.Info.Printf(lbn.logPrefix + "down")
+			}
 		// Message from parent (LB Pool): stop running.
 		case <-lbn.stopChan:
 			return
