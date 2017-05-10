@@ -15,9 +15,12 @@ type Result struct {
 }
 
 const (
-	hcError = iota
-	hcBad
-	hcGood
+	// HCError means failure in check itself
+	HCError = iota
+	// HCBad means the check has failed
+	HCBad
+	// HCGood means the check has succeeded
+	HCGood
 )
 
 // HealthCheck defines which functions must every type of healthcheck implement.

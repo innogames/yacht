@@ -65,11 +65,11 @@ func (hcb *HCBase) run(wg *sync.WaitGroup, do func(chan Result) context.CancelFu
 		select {
 		case res := <-resChan:
 			lastState := res.ret
-			if hcb.prevState != hcGood && lastState == hcGood {
+			if hcb.prevState != HCGood && lastState == HCGood {
 				hcb.failures = 0
 				logger.Info.Printf(hcb.logPrefix + " passed")
 			}
-			if lastState != hcGood && hcb.failures < hcb.maxFailed {
+			if lastState != HCGood && hcb.failures < hcb.maxFailed {
 				hcb.failures++
 				logger.Info.Printf(hcb.logPrefix+" failed %d/%d reason: %s", hcb.failures, hcb.maxFailed, res.err)
 				if hcb.failures == hcb.maxFailed {

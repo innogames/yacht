@@ -88,22 +88,22 @@ func (hc *HCHttp) do(hcr chan (Result)) context.CancelFunc {
 
 	// Spawn HTTP request in another goroutine.
 	go func() {
-		ret := hcError              // Start with default return code: error of healthcheck.
+		ret := HCError              // Start with default return code: error of healthcheck.
 		resp, err := client.Do(req) // Launch the request.
 		select {
 		case <-ctx.Done():
 			// Cancelled or timed out.
-			ret = hcBad
+			ret = HCBad
 		default:
 			// Normal exit.
 			if resp != nil {
 				for _, okCode := range hc.okCodes {
 					if resp.StatusCode == okCode {
-						ret = hcGood
+						ret = HCGood
 						break
 					}
 				}
-				if ret != hcGood {
+				if ret != HCGood {
 					err = &httpCodeError{resp.StatusCode}
 				}
 			}
