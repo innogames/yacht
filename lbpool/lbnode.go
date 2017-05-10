@@ -29,10 +29,10 @@ func newLBNode(poolChan chan NodeStateMsg, logPrefix string, proto string, name 
 	if nodeConfig[proto] == nil {
 		return nil
 	}
-	ipAddress := nodeConfig[proto].(string)
 
 	// Initialize new LB Node
 	lbNode := new(LBNode)
+	lbNode.ipAddress = nodeConfig[proto].(string)
 	lbNode.logPrefix = fmt.Sprintf(logPrefix+"lb_node: %s ", name)
 	lbNode.stopChan = make(chan bool)
 	lbNode.hcChan = make(chan healthcheck.HCResultMsg)
@@ -45,7 +45,7 @@ func newLBNode(poolChan chan NodeStateMsg, logPrefix string, proto string, name 
 	// First we create HCs. They are allowed to fail creation for example because
 	// of unknow type or other trouble reading their configuration.
 	for _, hcConfig := range hcConfigs {
-		hc := healthcheck.NewHealthCheck(lbNode.hcChan, hcIndex, lbNode.logPrefix, hcConfig.(map[string]interface{}), ipAddress)
+		hc := healthcheck.NewHealthCheck(lbNode.hcChan, hcIndex, lbNode.logPrefix, hcConfig.(map[string]interface{}), lbNode.ipAddress)
 		if hc != nil {
 			lbNode.healthChecks = append(lbNode.healthChecks, hc)
 			lbNode.hcsResults[hcIndex] = healthcheck.HCResult(healthcheck.HCUnknown)
@@ -61,7 +61,7 @@ func newLBNode(poolChan chan NodeStateMsg, logPrefix string, proto string, name 
 		"result": healthcheck.HCGood,
 	}
 	if len(lbNode.healthChecks) == 0 {
-		hc := healthcheck.NewHealthCheck(lbNode.hcChan, hcIndex, lbNode.logPrefix, dummyConfig, ipAddress)
+		hc := healthcheck.NewHealthCheck(lbNode.hcChan, hcIndex, lbNode.logPrefix, dummyConfig, lbNode.ipAddress)
 		lbNode.healthChecks = append(lbNode.healthChecks, hc)
 		lbNode.hcsResults[hcIndex] = healthcheck.HCResult(healthcheck.HCUnknown)
 	}
