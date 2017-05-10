@@ -117,8 +117,8 @@ func (hc *HCHttp) do(hcr chan (Result)) context.CancelFunc {
 	return cancel
 }
 
-// run starts operation of this healthcheck, in fact it calls the Base class.
-func (hc *HCHttp) run(wg *sync.WaitGroup) {
+// Run starts operation of this healthcheck, in fact it calls the Base class.
+func (hc *HCHttp) Run(wg *sync.WaitGroup) {
 	hc.HCBase.run(wg, hc.do)
 }
 

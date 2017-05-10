@@ -9,7 +9,7 @@ import (
 
 // HCBase is a structure holding properties shared between all healthcheck types.
 type HCBase struct {
-	// Properties - configuration
+	// Configuration
 	hcType         string
 	ipAddress      string
 	interval       int
@@ -19,13 +19,14 @@ type HCBase struct {
 	minNodesAction string
 	maxNodes       int
 
-	// Properties - operation
+	// Operation
 	failures  int
 	prevState int
 
 	// Communication
-	logPrefix string
-	stopChan  chan bool
+	logPrefix  string
+	lbNodeChan chan bool
+	stopChan   chan bool
 
 	// Implemented interface
 	HealthCheck
@@ -39,9 +40,10 @@ func jsonIntDefault(json JSONMap, key string, dflt int) int {
 }
 
 // configure sets up base properties of a healthcheck with reasonable defaults.
-func (hcb *HCBase) configure(json JSONMap, ipAddress string) {
+func (hcb *HCBase) configure(lbNodeChan chan bool, json JSONMap, ipAddress string) {
 	// logPrefix is not configured here because it might be slightly different for each type of HealthCheck
 	hcb.stopChan = make(chan bool)
+	hcb.lbNodeChan = lbNodeChan
 	hcb.ipAddress = ipAddress
 
 	// Read configuration parameters from JSON or provide a reasonable default.
@@ -54,6 +56,7 @@ func (hcb *HCBase) configure(json JSONMap, ipAddress string) {
 // which performs the real checking operation in scheduled time intervals. It can be
 // terminated by sending a boolean over stopChan.
 func (hcb *HCBase) run(wg *sync.WaitGroup, do func(chan Result) context.CancelFunc) {
+	wg.Add(1)
 	defer wg.Done()
 
 	for {
@@ -68,11 +71,13 @@ func (hcb *HCBase) run(wg *sync.WaitGroup, do func(chan Result) context.CancelFu
 			if hcb.prevState != HCGood && lastState == HCGood {
 				hcb.failures = 0
 				logger.Info.Printf(hcb.logPrefix + " passed")
+				hcb.lbNodeChan <- true
 			}
 			if lastState != HCGood && hcb.failures < hcb.maxFailed {
 				hcb.failures++
 				logger.Info.Printf(hcb.logPrefix+" failed %d/%d reason: %s", hcb.failures, hcb.maxFailed, res.err)
 				if hcb.failures == hcb.maxFailed {
+					hcb.lbNodeChan <- false
 				}
 			}
 			hcb.prevState = lastState

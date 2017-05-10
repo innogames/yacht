@@ -88,18 +88,20 @@ func (appState *AppState) runLBPools() {
 		return
 	}
 
-	logger.Debug.Printf("Starting LB Pools")
+	logger.Debug.Printf("Creating and starting LB Pools")
 	if lbPools, ok := (*appState.config)["lbpools"].(map[string]interface{}); ok {
 		for poolName, poolConfig := range lbPools {
 			poolConfigMap := poolConfig.(map[string]interface{})
 			// For each LB Pool found in configuration file try to spawn a new
 			// LBPool object both for IPv4 and IPv6. Nothing will be spanw if
 			// LB Pool has no configured IP address for given protocol.
-			if lbPool := lbpool.NewLBPool(appState.wg, "ip4", poolName, poolConfigMap); lbPool != nil {
+			if lbPool := lbpool.NewLBPool("ip4", poolName, poolConfigMap); lbPool != nil {
 				appState.lbPools = append(appState.lbPools, lbPool)
+				go lbPool.Run(appState.wg)
 			}
-			if lbPool := lbpool.NewLBPool(appState.wg, "ip6", poolName, poolConfigMap); lbPool != nil {
+			if lbPool := lbpool.NewLBPool("ip6", poolName, poolConfigMap); lbPool != nil {
 				appState.lbPools = append(appState.lbPools, lbPool)
+				go lbPool.Run(appState.wg)
 			}
 		}
 	}

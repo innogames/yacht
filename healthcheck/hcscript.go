@@ -20,8 +20,8 @@ func newHCScript(json JSONMap) (*HCScript, *HCBase) {
 	return hc, &hc.HCBase
 }
 
-// run starts operation of this healthcheck, in fact it calls the Base class.
-func (hc *HCScript) run(wg *sync.WaitGroup) {
+// Run starts operation of this healthcheck, in fact it calls the Base class.
+func (hc *HCScript) Run(wg *sync.WaitGroup) {
 	hc.HCBase.run(wg, nil)
 }
 

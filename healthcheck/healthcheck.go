@@ -25,13 +25,13 @@ const (
 
 // HealthCheck defines which functions must every type of healthcheck implement.
 type HealthCheck interface {
-	run(wg *sync.WaitGroup)
+	Run(wg *sync.WaitGroup)
 	Stop()
 }
 
 // NewHealthCheck is an object factory returning a proper HealtCheck object depending
 // in configuration it reads from JSON and starts its main goroutine.
-func NewHealthCheck(wg *sync.WaitGroup, logPrefix string, json JSONMap, ipAddress string) *HealthCheck {
+func NewHealthCheck(lbNodeChan chan bool, logPrefix string, json JSONMap, ipAddress string) *HealthCheck {
 	hctype := json["type"].(string)
 
 	var hc HealthCheck
@@ -50,10 +50,7 @@ func NewHealthCheck(wg *sync.WaitGroup, logPrefix string, json JSONMap, ipAddres
 		logger.Error.Printf(logPrefix+"Unknown HealthCheck type %s", hctype)
 		return nil
 	}
-	hcb.configure(json, ipAddress)
-
-	wg.Add(1) // Increase counter of running Healtthishecks
-	go hc.run(wg)
+	hcb.configure(lbNodeChan, json, ipAddress)
 
 	return &hc
 }

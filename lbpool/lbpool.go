@@ -15,13 +15,12 @@ type LBPool struct {
 
 	// Communication
 	logPrefix string
-	wg        *sync.WaitGroup
 	stopChan  chan bool
 }
 
 // NewLBPool is a object factory which creates new LBPool using configuration from JSON.
 // The object's main goroutine is also started here.
-func NewLBPool(wg *sync.WaitGroup, proto string, name string, json map[string]interface{}) *LBPool {
+func NewLBPool(proto string, name string, json map[string]interface{}) *LBPool {
 	ipAddress := json[proto]
 	if ipAddress == nil {
 		return nil
@@ -39,13 +38,10 @@ func NewLBPool(wg *sync.WaitGroup, proto string, name string, json map[string]in
 	// They will make their own HealthChecks from it.
 	hcConfigs := json["healthchecks"]
 
-	// Run this pool before nodes are created. They might send messages immediately!
-	go lbPool.run()
-
 	// Create LB Nodes for this LB Pool
 	nodes := json["nodes"].(map[string]interface{})
 	for nodeName, nodeConfig := range nodes {
-		lbnode := newLBNode(wg, lbPool.logPrefix, proto, nodeName, nodeConfig.(map[string]interface{}), hcConfigs.([]interface{}))
+		lbnode := newLBNode(lbPool.logPrefix, proto, nodeName, nodeConfig.(map[string]interface{}), hcConfigs.([]interface{}))
 		lbPool.lbNodes = append(lbPool.lbNodes, lbnode)
 	}
 
@@ -53,7 +49,12 @@ func NewLBPool(wg *sync.WaitGroup, proto string, name string, json map[string]in
 }
 
 // Run is the main loop of LB Pool.
-func (lbp *LBPool) run() {
+func (lbp *LBPool) Run(wg *sync.WaitGroup) {
+
+	// Start operation of all LB Nodes of this Pool.
+	for _, lbNode := range lbp.lbNodes {
+		go lbNode.run(wg)
+	}
 
 	for {
 		select {
