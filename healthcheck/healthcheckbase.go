@@ -21,7 +21,7 @@ type HCBase struct {
 
 	// Operation
 	failures  int
-	prevState int
+	prevState Result
 
 	// Communication
 	logPrefix  string
@@ -55,19 +55,19 @@ func (hcb *HCBase) configure(lbNodeChan chan bool, json JSONMap, ipAddress strin
 // run starts operation of a healthcheck. It is an endless loop running in a goroutine
 // which performs the real checking operation in scheduled time intervals. It can be
 // terminated by sending a boolean over stopChan.
-func (hcb *HCBase) run(wg *sync.WaitGroup, do func(chan Result) context.CancelFunc) {
+func (hcb *HCBase) run(wg *sync.WaitGroup, do func(chan ResultError) context.CancelFunc) {
 	wg.Add(1)
 	defer wg.Done()
 
 	for {
 		// Prepare a chanel to receive results from and do the Healthcheck.
-		resChan := make(chan Result)
+		resChan := make(chan ResultError)
 		cancel := do(resChan)
 
 		// Wait for finish of do() or end of program.
 		select {
 		case res := <-resChan:
-			lastState := res.ret
+			lastState := res.res
 			if hcb.prevState != HCGood && lastState == HCGood {
 				hcb.failures = 0
 				logger.Info.Printf(hcb.logPrefix + " passed")

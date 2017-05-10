@@ -8,21 +8,6 @@ import (
 // JSONMap is a shortcut for a JSON dictionary.
 type JSONMap map[string]interface{}
 
-// Result is sent in a channel from a children, specific HC class to this master class.
-type Result struct {
-	ret int
-	err error
-}
-
-const (
-	// HCError means failure in check itself
-	HCError = iota
-	// HCBad means the check has failed
-	HCBad
-	// HCGood means the check has succeeded
-	HCGood
-)
-
 // HealthCheck defines which functions must every type of healthcheck implement.
 type HealthCheck interface {
 	Run(wg *sync.WaitGroup)

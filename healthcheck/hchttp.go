@@ -57,7 +57,7 @@ func newHCHttp(logPrefix string, json JSONMap) (*HCHttp, *HCBase) {
 }
 
 // check performs the healthckeck. It is called from the main goroutine of HealthcheckBase.
-func (hc *HCHttp) do(hcr chan (Result)) context.CancelFunc {
+func (hc *HCHttp) do(hcr chan (ResultError)) context.CancelFunc {
 
 	// Prepare context for canceling of requests
 	ctx, cancel := context.WithCancel(context.Background())
@@ -88,28 +88,28 @@ func (hc *HCHttp) do(hcr chan (Result)) context.CancelFunc {
 
 	// Spawn HTTP request in another goroutine.
 	go func() {
-		ret := HCError              // Start with default return code: error of healthcheck.
+		res := HCError              // Start with default return code: error of healthcheck.
 		resp, err := client.Do(req) // Launch the request.
 		select {
 		case <-ctx.Done():
 			// Cancelled or timed out.
-			ret = HCBad
+			res = HCBad
 		default:
 			// Normal exit.
 			if resp != nil {
 				for _, okCode := range hc.okCodes {
 					if resp.StatusCode == okCode {
-						ret = HCGood
+						res = HCGood
 						break
 					}
 				}
-				if ret != HCGood {
+				if res != HCGood {
 					err = &httpCodeError{resp.StatusCode}
 				}
 			}
 		}
-		hcr <- Result{
-			ret: ret,
+		hcr <- ResultError{
+			res: res,
 			err: err,
 		}
 	}()
