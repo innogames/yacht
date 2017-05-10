@@ -9,7 +9,7 @@ import (
 
 // HCDummy stores all properties of a dummy healthcheck.
 type HCDummy struct {
-	result Result
+	result HCResult
 	HCBase
 }
 
@@ -18,7 +18,7 @@ func newHCDummy(logPrefix string, json JSONMap) (*HCDummy, *HCBase) {
 	hc := new(HCDummy)
 	hc.hcType = json["type"].(string)
 
-	if result, ok := json["result"].(Result); ok {
+	if result, ok := json["result"].(HCResult); ok {
 		hc.result = result
 	}
 
@@ -29,10 +29,10 @@ func newHCDummy(logPrefix string, json JSONMap) (*HCDummy, *HCBase) {
 }
 
 // do performs the healthckeck. It is called from the main goroutine of HealthcheckBase.
-func (hc *HCDummy) do(hcr chan (ResultError)) context.CancelFunc {
+func (hc *HCDummy) do(hcr chan (HCResultError)) context.CancelFunc {
 
 	go func() {
-		hcr <- ResultError{
+		hcr <- HCResultError{
 			res: hc.result,
 			err: nil,
 		}

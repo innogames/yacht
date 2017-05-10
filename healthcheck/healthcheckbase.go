@@ -21,12 +21,13 @@ type HCBase struct {
 
 	// Operation
 	failures  int
-	prevState Result
+	prevState HCResult
 
 	// Communication
 	logPrefix  string
-	lbNodeChan chan bool
+	lbNodeChan chan HCResultMsg
 	stopChan   chan bool
+	hcIndex    int
 
 	// Implemented interface
 	HealthCheck
@@ -40,11 +41,12 @@ func jsonIntDefault(json JSONMap, key string, dflt int) int {
 }
 
 // configure sets up base properties of a healthcheck with reasonable defaults.
-func (hcb *HCBase) configure(lbNodeChan chan bool, json JSONMap, ipAddress string) {
+func (hcb *HCBase) configure(lbNodeChan chan HCResultMsg, hcIndex int, json JSONMap, ipAddress string) {
 	// logPrefix is not configured here because it might be slightly different for each type of HealthCheck
 	hcb.stopChan = make(chan bool)
 	hcb.lbNodeChan = lbNodeChan
 	hcb.ipAddress = ipAddress
+	hcb.hcIndex = hcIndex
 
 	// Read configuration parameters from JSON or provide a reasonable default.
 	hcb.maxFailed = jsonIntDefault(json, "maxFailed", 3)
@@ -55,13 +57,13 @@ func (hcb *HCBase) configure(lbNodeChan chan bool, json JSONMap, ipAddress strin
 // run starts operation of a healthcheck. It is an endless loop running in a goroutine
 // which performs the real checking operation in scheduled time intervals. It can be
 // terminated by sending a boolean over stopChan.
-func (hcb *HCBase) run(wg *sync.WaitGroup, do func(chan ResultError) context.CancelFunc) {
+func (hcb *HCBase) run(wg *sync.WaitGroup, do func(chan HCResultError) context.CancelFunc) {
 	wg.Add(1)
 	defer wg.Done()
 
 	for {
 		// Prepare a chanel to receive results from and do the Healthcheck.
-		resChan := make(chan ResultError)
+		resChan := make(chan HCResultError)
 		cancel := do(resChan)
 
 		// Wait for finish of do() or end of program.
@@ -71,13 +73,19 @@ func (hcb *HCBase) run(wg *sync.WaitGroup, do func(chan ResultError) context.Can
 			if hcb.prevState != HCGood && lastState == HCGood {
 				hcb.failures = 0
 				logger.Info.Printf(hcb.logPrefix + "action: passed")
-				hcb.lbNodeChan <- true
+				hcb.lbNodeChan <- HCResultMsg{
+					result: HCGood,
+					index:  hcb.hcIndex,
+				}
 			}
 			if lastState != HCGood && hcb.failures < hcb.maxFailed {
 				hcb.failures++
 				logger.Info.Printf(hcb.logPrefix+"action: failed %d/%d reason: %s", hcb.failures, hcb.maxFailed, res.err)
 				if hcb.failures == hcb.maxFailed {
-					hcb.lbNodeChan <- false
+					hcb.lbNodeChan <- HCResultMsg{
+						result: HCBad,
+						index:  hcb.hcIndex,
+					}
 				}
 			}
 			hcb.prevState = lastState

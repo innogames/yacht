@@ -57,7 +57,7 @@ func newHCHttp(logPrefix string, json JSONMap) (*HCHttp, *HCBase) {
 }
 
 // check performs the healthckeck. It is called from the main goroutine of HealthcheckBase.
-func (hc *HCHttp) do(hcr chan (ResultError)) context.CancelFunc {
+func (hc *HCHttp) do(hcr chan (HCResultError)) context.CancelFunc {
 
 	// Prepare context for canceling of requests
 	ctx, cancel := context.WithCancel(context.Background())
@@ -108,7 +108,7 @@ func (hc *HCHttp) do(hcr chan (ResultError)) context.CancelFunc {
 				}
 			}
 		}
-		hcr <- ResultError{
+		hcr <- HCResultError{
 			res: res,
 			err: err,
 		}

@@ -15,16 +15,17 @@ type LBNode struct {
 	ipAddress string
 
 	// Operation
-	okHCs int // Counts passed HCs. When it reaches 0, the node is down.
+	hcsResults healthcheck.HCsResults
 
 	// Communication
 	logPrefix    string
 	stopChan     chan bool
-	hcChan       chan bool // Channel over which HCs will tell us their hard state
+	hcChan       chan healthcheck.HCResultMsg // incoming channel over which HCs will tell us their hard state
+	poolChan     chan NodeStateMsg            // outgoing channel over wich this Node reports state to Pool
 	healthChecks []*healthcheck.HealthCheck
 }
 
-func newLBNode(logPrefix string, proto string, name string, nodeConfig map[string]interface{}, hcConfigs []interface{}) *LBNode {
+func newLBNode(poolChan chan NodeStateMsg, logPrefix string, proto string, name string, nodeConfig map[string]interface{}, hcConfigs []interface{}) *LBNode {
 	if nodeConfig[proto] == nil {
 		return nil
 	}
@@ -34,16 +35,21 @@ func newLBNode(logPrefix string, proto string, name string, nodeConfig map[strin
 	lbNode := new(LBNode)
 	lbNode.logPrefix = fmt.Sprintf(logPrefix+"lb_node: %s ", name)
 	lbNode.stopChan = make(chan bool)
-	lbNode.hcChan = make(chan bool)
+	lbNode.hcChan = make(chan healthcheck.HCResultMsg)
+	lbNode.poolChan = poolChan
+	lbNode.hcsResults = healthcheck.HCsResults{}
 
 	logger.Info.Printf(lbNode.logPrefix + "created")
 
+	hcIndex := 0
 	// First we create HCs. They are allowed to fail creation for example because
 	// of unknow type or other trouble reading their configuration.
 	for _, hcConfig := range hcConfigs {
-		hc := healthcheck.NewHealthCheck(lbNode.hcChan, lbNode.logPrefix, hcConfig.(map[string]interface{}), ipAddress)
+		hc := healthcheck.NewHealthCheck(lbNode.hcChan, hcIndex, lbNode.logPrefix, hcConfig.(map[string]interface{}), ipAddress)
 		if hc != nil {
 			lbNode.healthChecks = append(lbNode.healthChecks, hc)
+			lbNode.hcsResults[hcIndex] = healthcheck.HCResult(healthcheck.HCUnknown)
+			hcIndex++
 		}
 	}
 
@@ -55,11 +61,32 @@ func newLBNode(logPrefix string, proto string, name string, nodeConfig map[strin
 		"result": healthcheck.HCGood,
 	}
 	if len(lbNode.healthChecks) == 0 {
-		hc := healthcheck.NewHealthCheck(lbNode.hcChan, lbNode.logPrefix, dummyConfig, ipAddress)
+		hc := healthcheck.NewHealthCheck(lbNode.hcChan, hcIndex, lbNode.logPrefix, dummyConfig, ipAddress)
 		lbNode.healthChecks = append(lbNode.healthChecks, hc)
+		lbNode.hcsResults[hcIndex] = healthcheck.HCResult(healthcheck.HCUnknown)
 	}
 
 	return lbNode
+}
+
+func (lbn *LBNode) nodeLogic(hcrm healthcheck.HCResultMsg) {
+
+	lbn.hcsResults.Update(hcrm)
+	goodHCs, allHCs := lbn.hcsResults.GoodHCs()
+
+	if goodHCs == allHCs {
+		logger.Info.Printf(lbn.logPrefix+"%d/%d healthchecks good action: up", goodHCs, allHCs)
+		lbn.poolChan <- NodeStateMsg{
+			state:  NodeUp,
+			lbNode: lbn,
+		}
+	} else {
+		logger.Info.Printf(lbn.logPrefix+"%d/%d healthchecks good action: down", goodHCs, allHCs)
+		lbn.poolChan <- NodeStateMsg{
+			state:  NodeDown,
+			lbNode: lbn,
+		}
+	}
 }
 
 // Run is the main loop of LB Node. It receives messages from parent and children.
@@ -72,17 +99,8 @@ func (lbn *LBNode) run(wg *sync.WaitGroup) {
 	for {
 		select {
 		// Message from one of Healthchecks about reaching a hard state.
-		case hcState := <-lbn.hcChan:
-			if hcState == true {
-				lbn.okHCs++
-			} else {
-				lbn.okHCs--
-			}
-			if lbn.okHCs == len(lbn.healthChecks) {
-				logger.Info.Printf(lbn.logPrefix + "action: up")
-			} else {
-				logger.Info.Printf(lbn.logPrefix + "action: down")
-			}
+		case hcrm := <-lbn.hcChan:
+			lbn.nodeLogic(hcrm)
 		// Message from parent (LB Pool): stop running.
 		case <-lbn.stopChan:
 			return

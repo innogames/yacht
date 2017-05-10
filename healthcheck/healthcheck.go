@@ -16,7 +16,7 @@ type HealthCheck interface {
 
 // NewHealthCheck is an object factory returning a proper HealtCheck object depending
 // in configuration it reads from JSON and starts its main goroutine.
-func NewHealthCheck(lbNodeChan chan bool, logPrefix string, json JSONMap, ipAddress string) *HealthCheck {
+func NewHealthCheck(lbNodeChan chan HCResultMsg, hcIndex int, logPrefix string, json JSONMap, ipAddress string) *HealthCheck {
 	hctype := json["type"].(string)
 
 	var hc HealthCheck
@@ -37,7 +37,7 @@ func NewHealthCheck(lbNodeChan chan bool, logPrefix string, json JSONMap, ipAddr
 		logger.Error.Printf(logPrefix+"Unknown HealthCheck type %s", hctype)
 		return nil
 	}
-	hcb.configure(lbNodeChan, json, ipAddress)
+	hcb.configure(lbNodeChan, hcIndex, json, ipAddress)
 
 	return &hc
 }

@@ -13,8 +13,12 @@ type LBPool struct {
 	ipAddress string
 	lbNodes   []*LBNode
 
+	// Operation
+	nodesStates NodesStates
+
 	// Communication
 	logPrefix string
+	nodeChan  chan NodeStateMsg
 	stopChan  chan bool
 }
 
@@ -29,9 +33,11 @@ func NewLBPool(proto string, name string, json map[string]interface{}) *LBPool {
 	// Initialize new LB Pool
 	lbPool := new(LBPool)
 	lbPool.stopChan = make(chan bool)
+	lbPool.nodeChan = make(chan NodeStateMsg)
 	lbPool.name = name + "_" + proto
 	lbPool.ipAddress = ipAddress.(string)
 	lbPool.logPrefix = fmt.Sprintf("lb_pool: %s ", lbPool.name)
+	lbPool.nodesStates = NodesStates{}
 	logger.Info.Printf(lbPool.logPrefix + "created")
 
 	// Configuration of Healthchecks for this LB Pool will be passed to all nodes.
@@ -41,11 +47,18 @@ func NewLBPool(proto string, name string, json map[string]interface{}) *LBPool {
 	// Create LB Nodes for this LB Pool
 	nodes := json["nodes"].(map[string]interface{})
 	for nodeName, nodeConfig := range nodes {
-		lbnode := newLBNode(lbPool.logPrefix, proto, nodeName, nodeConfig.(map[string]interface{}), hcConfigs.([]interface{}))
-		lbPool.lbNodes = append(lbPool.lbNodes, lbnode)
+		lbNode := newLBNode(lbPool.nodeChan, lbPool.logPrefix, proto, nodeName, nodeConfig.(map[string]interface{}), hcConfigs.([]interface{}))
+		lbPool.lbNodes = append(lbPool.lbNodes, lbNode)
+		lbPool.nodesStates[lbNode] = NodeState(NodeUnknown)
 	}
 
 	return lbPool
+}
+
+func (lbp *LBPool) poolLogic(nsm NodeStateMsg) {
+	lbp.nodesStates.update(nsm)
+	upNodes, allNodes := lbp.nodesStates.upNodes()
+	logger.Info.Printf(lbp.logPrefix+"%d/%d nodes up", upNodes, allNodes)
 }
 
 // Run is the main loop of LB Pool.
@@ -58,6 +71,9 @@ func (lbp *LBPool) Run(wg *sync.WaitGroup) {
 
 	for {
 		select {
+		case nsm := <-lbp.nodeChan:
+			lbp.poolLogic(nsm)
+
 		// Message from parent (main program): stop running.
 		case <-lbp.stopChan:
 			return
