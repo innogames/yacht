@@ -47,6 +47,18 @@ func newLBNode(logPrefix string, proto string, name string, nodeConfig map[strin
 		}
 	}
 
+	// If no HCs were added because of bad configuraion or because not being
+	// configured at all, add a simple dummy HC that always returns hcGood.
+	// This makes Pools without HCs always have all Nodes forced up.
+	dummyConfig := map[string]interface{}{
+		"type":   "dummy",
+		"result": healthcheck.HCGood,
+	}
+	if len(lbNode.healthChecks) == 0 {
+		hc := healthcheck.NewHealthCheck(lbNode.hcChan, lbNode.logPrefix, dummyConfig, ipAddress)
+		lbNode.healthChecks = append(lbNode.healthChecks, hc)
+	}
+
 	return lbNode
 }
 

@@ -23,6 +23,8 @@ func NewHealthCheck(lbNodeChan chan bool, logPrefix string, json JSONMap, ipAddr
 	var hcb *HCBase
 
 	switch hctype {
+	case "dummy":
+		hc, hcb = newHCDummy(logPrefix, json)
 	case "http":
 		hc, hcb = newHCHttp(logPrefix, json)
 	case "https":
