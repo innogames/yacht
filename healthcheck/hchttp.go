@@ -45,14 +45,14 @@ func newHCHttp(logPrefix string, json JSONMap) (*HCHttp, *HCBase) {
 		}
 	}
 
-	hc.logPrefix = logPrefix + fmt.Sprintf("healthcheck: %s url: %s", hc.hcType, hc.url)
+	hc.logPrefix = logPrefix + fmt.Sprintf("healthcheck: %s url: %s ", hc.hcType, hc.url)
 
 	if len(hc.okCodes) == 0 {
-		logger.Info.Printf(hc.logPrefix+" unable to parse ok codes from %s", json["ok_codes"].([]string))
+		logger.Info.Printf(hc.logPrefix+"unable to parse ok codes from %s", json["ok_codes"].([]string))
 		hc.okCodes = []int{200}
 	}
 
-	logger.Info.Printf(hc.logPrefix + " created")
+	logger.Info.Printf(hc.logPrefix + "created")
 	return hc, &hc.HCBase
 }
 

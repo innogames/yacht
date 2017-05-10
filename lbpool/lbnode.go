@@ -79,9 +79,9 @@ func (lbn *LBNode) run(wg *sync.WaitGroup) {
 				lbn.okHCs--
 			}
 			if lbn.okHCs == len(lbn.healthChecks) {
-				logger.Info.Printf(lbn.logPrefix + "up")
+				logger.Info.Printf(lbn.logPrefix + "action: up")
 			} else {
-				logger.Info.Printf(lbn.logPrefix + "down")
+				logger.Info.Printf(lbn.logPrefix + "action: down")
 			}
 		// Message from parent (LB Pool): stop running.
 		case <-lbn.stopChan:

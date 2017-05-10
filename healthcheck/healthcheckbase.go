@@ -70,12 +70,12 @@ func (hcb *HCBase) run(wg *sync.WaitGroup, do func(chan ResultError) context.Can
 			lastState := res.res
 			if hcb.prevState != HCGood && lastState == HCGood {
 				hcb.failures = 0
-				logger.Info.Printf(hcb.logPrefix + " passed")
+				logger.Info.Printf(hcb.logPrefix + "action: passed")
 				hcb.lbNodeChan <- true
 			}
 			if lastState != HCGood && hcb.failures < hcb.maxFailed {
 				hcb.failures++
-				logger.Info.Printf(hcb.logPrefix+" failed %d/%d reason: %s", hcb.failures, hcb.maxFailed, res.err)
+				logger.Info.Printf(hcb.logPrefix+"action: failed %d/%d reason: %s", hcb.failures, hcb.maxFailed, res.err)
 				if hcb.failures == hcb.maxFailed {
 					hcb.lbNodeChan <- false
 				}
