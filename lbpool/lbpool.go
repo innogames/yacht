@@ -29,7 +29,7 @@ func NewLBPool(proto string, name string, json map[string]interface{}) *LBPool {
 	// Initialize new LB Pool
 	lbPool := new(LBPool)
 	lbPool.stopChan = make(chan bool)
-	lbPool.name = name
+	lbPool.name = name + "_" + proto
 	lbPool.ipAddress = ipAddress.(string)
 	lbPool.logPrefix = fmt.Sprintf("lb_pool: %s ", lbPool.name)
 	logger.Info.Printf(lbPool.logPrefix + "created")
