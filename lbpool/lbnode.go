@@ -79,16 +79,19 @@ func (lbn *LBNode) nodeLogic(hcrm healthcheck.HCResultMsg) {
 
 	lbn.checked = true
 	lbn.hcsResults.Update(hcrm)
-	goodHCs, allHCs := lbn.hcsResults.GoodHCs()
+	goodHCs, allHCs, unknownHCs := lbn.hcsResults.GoodHCs()
 
-	if goodHCs == allHCs && lbn.state != NodeUp {
-		logger.Info.Printf(lbn.logPrefix+"%d/%d healthchecks good action: up", goodHCs, allHCs)
-		lbn.state = NodeUp
-		lbn.lbPool.poolLogic(lbn)
-	} else if goodHCs != allHCs && lbn.state != NodeDown {
-		logger.Info.Printf(lbn.logPrefix+"%d/%d healthchecks good action: down", goodHCs, allHCs)
-		lbn.state = NodeDown
-		lbn.lbPool.poolLogic(lbn)
+	// Do not perform any actions untill all HCs report at least once!
+	if unknownHCs == 0 {
+		if goodHCs == allHCs && lbn.state != NodeUp {
+			logger.Info.Printf(lbn.logPrefix+"%d/%d healthchecks good action: up", goodHCs, allHCs)
+			lbn.state = NodeUp
+			lbn.lbPool.poolLogic(lbn)
+		} else if goodHCs != allHCs && lbn.state != NodeDown {
+			logger.Info.Printf(lbn.logPrefix+"%d/%d healthchecks good action: down", goodHCs, allHCs)
+			lbn.state = NodeDown
+			lbn.lbPool.poolLogic(lbn)
+		}
 	}
 	lbn.lbPool.Unlock()
 }

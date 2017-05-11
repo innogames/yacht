@@ -31,16 +31,17 @@ type HCResultError struct {
 type HCsResults map[HealthCheck]HCResult
 
 // GoodHCs counts good and all HCs.
-func (hcsrs *HCsResults) GoodHCs() (int, int) {
-	var allHCs int
-	var goodHCs int
+func (hcsrs *HCsResults) GoodHCs() (int, int, int) {
+	var allHCs, goodHCs, unknownHCs int
 	for _, result := range *hcsrs {
 		if result == HCGood {
 			goodHCs++
+		} else if result == HCUnknown {
+			unknownHCs++
 		}
 		allHCs++
 	}
-	return goodHCs, allHCs
+	return goodHCs, allHCs, unknownHCs
 }
 
 // Update updates HCsResults with information from a HCResultMsg
