@@ -40,11 +40,11 @@ func jsonIntDefault(json JSONMap, key string, dflt int) int {
 }
 
 // configure sets up base properties of a healthcheck with reasonable defaults.
-func (hcb *HCBase) configure(lbNodeChan chan HCResultMsg, json JSONMap, ipAddress string) {
+func (hcb *HCBase) configure(lbNodeChan chan HCResultMsg, json JSONMap, ipAddress net.IP) {
 	// logPrefix is not configured here because it might be slightly different for each type of HealthCheck
 	hcb.stopChan = make(chan bool)
 	hcb.lbNodeChan = lbNodeChan
-	hcb.ipAddress = net.ParseIP(ipAddress)
+	hcb.ipAddress = ipAddress
 
 	// Read configuration parameters from JSON or provide a reasonable default.
 	hcb.maxFailed = jsonIntDefault(json, "maxFailed", 3)

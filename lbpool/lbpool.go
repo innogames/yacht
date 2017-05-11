@@ -3,6 +3,7 @@ package lbpool
 import (
 	"fmt"
 	"github.com/innogames/yacht/logger"
+	"net"
 	"sync"
 )
 
@@ -158,14 +159,14 @@ func (lbp *LBPool) poolLogic(lbNode *LBNode) {
 
 // GetWantedNodes returns information required to configure loadbalancing.
 // If there was no change, it returns nil as list.
-func (lbp *LBPool) GetWantedNodes() (string, []string, string) {
+func (lbp *LBPool) GetWantedNodes() (string, []net.IP, string) {
 	defer lbp.Unlock()
 	lbp.Lock()
 	if lbp.wantedChanged == false {
 		return lbp.pfName, nil, lbp.logPrefix
 	}
 	lbp.wantedChanged = false
-	var ret []string
+	var ret []net.IP
 	for _, lbn := range lbp.wantedNodes {
 		ret = append(ret, lbn.ipAddress)
 	}

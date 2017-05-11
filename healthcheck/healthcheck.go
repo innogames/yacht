@@ -3,6 +3,7 @@ package healthcheck
 import (
 	"context"
 	"github.com/innogames/yacht/logger"
+	"net"
 	"sync"
 )
 
@@ -13,13 +14,13 @@ type JSONMap map[string]interface{}
 type HealthCheck interface {
 	Run(wg *sync.WaitGroup)
 	Stop()
-	configure(lbNodeChan chan HCResultMsg, json JSONMap, ipAddress string)
+	configure(lbNodeChan chan HCResultMsg, json JSONMap, ipAddress net.IP)
 	do(hcr chan (HCResultError)) context.CancelFunc
 }
 
 // NewHealthCheck is an object factory returning a proper HealtCheck object depending
 // in configuration it reads from JSON and starts its main goroutine.
-func NewHealthCheck(lbNodeChan chan HCResultMsg, logPrefix string, json JSONMap, ipAddress string) HealthCheck {
+func NewHealthCheck(lbNodeChan chan HCResultMsg, logPrefix string, json JSONMap, ipAddress net.IP) HealthCheck {
 	hctype := json["type"].(string)
 
 	var hc HealthCheck

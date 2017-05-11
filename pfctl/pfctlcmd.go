@@ -3,6 +3,7 @@ package pfctl
 import (
 	"bufio"
 	"github.com/innogames/yacht/logger"
+	"net"
 	"os/exec"
 	"strings"
 )
@@ -30,8 +31,8 @@ func pfctlCmd(arg []string) (*bufio.Scanner, error) {
 	return scanner, nil
 }
 
-func pfctlGetTable(table string) ([]string, error) {
-	var ret []string
+func pfctlGetTable(table string) ([]net.IP, error) {
+	var ret []net.IP
 
 	out, err := pfctlCmd([]string{"-t", table, "-Ts"})
 	if err != nil {

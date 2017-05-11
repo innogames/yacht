@@ -18,7 +18,6 @@ const (
 	NodeUp
 )
 
-
 // NodeReason keeps information why node was included or excluded
 type NodeReason int
 

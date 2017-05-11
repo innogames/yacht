@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/innogames/yacht/healthcheck"
 	"github.com/innogames/yacht/logger"
+	"net"
 	"sync"
 )
 
@@ -12,7 +13,7 @@ import (
 type LBNode struct {
 	// Configuration
 	name      string
-	ipAddress string
+	ipAddress net.IP
 
 	// Operation
 	hcsResults healthcheck.HCsResults
@@ -33,12 +34,16 @@ func newLBNode(lbPool *LBPool, logPrefix string, proto string, name string, node
 	if nodeConfig["ip"+proto] == nil {
 		return nil
 	}
+	ipAddress := net.ParseIP(nodeConfig["ip"+proto].(string))
+	if ipAddress == nil {
+		return nil
+	}
 
 	// Initialize new LB Node
 	lbNode := new(LBNode)
 	lbNode.name = name
 	lbNode.lbPool = lbPool
-	lbNode.ipAddress = nodeConfig["ip"+proto].(string)
+	lbNode.ipAddress = ipAddress
 	lbNode.logPrefix = fmt.Sprintf(logPrefix+"lb_node: %s ", name)
 	lbNode.stopChan = make(chan bool)
 	lbNode.hcChan = make(chan healthcheck.HCResultMsg)
