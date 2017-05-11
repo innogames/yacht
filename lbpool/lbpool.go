@@ -46,19 +46,19 @@ func NewLBPool(proto string, name string, json map[string]interface{}) *LBPool {
 	lbPool.logPrefix = fmt.Sprintf("lb_pool: %s ", lbPool.name)
 
 	// Configure min and max nodes behaviour
-	if minNodes, ok := json["min_nodes"].(int); ok {
-		lbPool.minNodes = minNodes
+	if minNodes, ok := json["min_nodes"].(float64); ok {
+		lbPool.minNodes = int(minNodes)
 	} else {
 		lbPool.minNodes = 0
 	}
 
-	if maxNodes, ok := json["max_nodes"].(int); ok {
-		lbPool.maxNodes = maxNodes
+	if maxNodes, ok := json["max_nodes"].(float64); ok {
+		lbPool.maxNodes = int(maxNodes)
 	} else {
 		lbPool.maxNodes = 0
 	}
 
-	if lbPool.maxNodes < lbPool.minNodes {
+	if lbPool.maxNodes > 0 && lbPool.maxNodes < lbPool.minNodes {
 		lbPool.maxNodes = lbPool.minNodes
 	}
 
@@ -91,7 +91,7 @@ func (lbp *LBPool) poolLogic(lbNode *LBNode) {
 	// Mark wanted set as dirty.
 	lbp.wantedChanged = true
 
-	var allNodes, upNodes int
+	var upNodes, forcedNodes, allNodes int
 	var wantedNodes []*LBNode
 
 	// Add nodes while satisfying maxNodes if it is set. Initial nodes don't
@@ -119,26 +119,30 @@ func (lbp *LBPool) poolLogic(lbNode *LBNode) {
 			// not change loadbalancing.
 			if lbNode.primary {
 				wantedNodes = append(wantedNodes, lbNode)
+				forcedNodes++
 			}
 			// Then try any other nodes.
 			for _, lbn := range lbp.lbNodes {
-				if lbn.primary && upNodes < lbp.minNodes {
+				if lbn.primary && forcedNodes < lbp.minNodes {
 					wantedNodes = append(wantedNodes, lbn)
-					upNodes++
+					forcedNodes++
 				}
 			}
 		} else if lbp.minNodesAction == BackupPool {
 			for _, lbn := range lbp.lbNodes {
 				if lbn.primary == false && lbn.state == NodeUp {
 					wantedNodes = append(wantedNodes, lbn)
-					upNodes++
+					forcedNodes++
 				}
 			}
 		}
 	}
 
 	lbp.wantedNodes = wantedNodes
-	logger.Info.Printf(lbp.logPrefix+"%d/%d min %d max %d nodes up", upNodes, allNodes, lbp.minNodes, lbp.maxNodes)
+	logger.Info.Printf(lbp.logPrefix+"nodes: up %d forced %d min %d max %d all %d", upNodes, forcedNodes, lbp.minNodes, lbp.maxNodes, allNodes)
+	for _, node := range wantedNodes {
+		logger.Info.Printf(lbp.logPrefix+"lb_node: %s action: active", node.name)
+	}
 }
 
 // GetWantedNodes returns information required to configure loadbalancing.

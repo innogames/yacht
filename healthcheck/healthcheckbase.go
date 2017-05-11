@@ -33,8 +33,8 @@ type HCBase struct {
 }
 
 func jsonIntDefault(json JSONMap, key string, dflt int) int {
-	if val, ok := json[key].(int); ok && val >= dflt {
-		return val
+	if val, ok := json[key].(float64); ok && int(val) >= dflt {
+		return int(val)
 	}
 	return dflt
 }

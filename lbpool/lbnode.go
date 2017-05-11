@@ -35,6 +35,7 @@ func newLBNode(lbPool *LBPool, logPrefix string, proto string, name string, node
 
 	// Initialize new LB Node
 	lbNode := new(LBNode)
+	lbNode.name = name
 	lbNode.lbPool = lbPool
 	lbNode.ipAddress = nodeConfig["ip"+proto].(string)
 	lbNode.logPrefix = fmt.Sprintf(logPrefix+"lb_node: %s ", name)
