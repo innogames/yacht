@@ -16,14 +16,15 @@ func (e pfctlError) Error() string {
 	return "pfctl: " + e.s
 }
 
-func pfctlCmd(arg []string) (*bufio.Scanner, error) {
-	cmd := exec.Command("/sbin/pfctl", arg...)
+func pfctlCmd(args []string) (*bufio.Scanner, error) {
+	args = append([]string{"-q"}, args...)
+	cmd := exec.Command("/sbin/pfctl", args...)
 	out, err := cmd.CombinedOutput()
 
 	outStr := string(out)
 
 	if err != nil {
-		return nil, pfctlError{err.Error() + outStr}
+		return nil, pfctlError{err.Error() + "\n" + outStr}
 	}
 
 	scanner := bufio.NewScanner(strings.NewReader(outStr))
