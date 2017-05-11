@@ -95,11 +95,11 @@ func (appState *AppState) runLBPools() {
 			// For each LB Pool found in configuration file try to spawn a new
 			// LBPool object both for IPv4 and IPv6. Nothing will be spanw if
 			// LB Pool has no configured IP address for given protocol.
-			if lbPool := lbpool.NewLBPool("ip4", poolName, poolConfigMap); lbPool != nil {
+			if lbPool := lbpool.NewLBPool("4", poolName, poolConfigMap); lbPool != nil {
 				appState.lbPools = append(appState.lbPools, lbPool)
 				go lbPool.Run(appState.wg)
 			}
-			if lbPool := lbpool.NewLBPool("ip6", poolName, poolConfigMap); lbPool != nil {
+			if lbPool := lbpool.NewLBPool("6", poolName, poolConfigMap); lbPool != nil {
 				appState.lbPools = append(appState.lbPools, lbPool)
 				go lbPool.Run(appState.wg)
 			}

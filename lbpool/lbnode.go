@@ -16,27 +16,31 @@ type LBNode struct {
 
 	// Operation
 	hcsResults healthcheck.HCsResults
+	state      NodeState
+	reason     NodeReason
+	checked    bool // stores information if this node was ever checked
 
 	// Communication
 	logPrefix    string
+	lbPool       *LBPool
 	stopChan     chan bool
 	hcChan       chan healthcheck.HCResultMsg // incoming channel over which HCs will tell us their hard state
-	poolChan     chan NodeStateMsg            // outgoing channel over wich this Node reports state to Pool
 	healthChecks []healthcheck.HealthCheck
 }
 
-func newLBNode(poolChan chan NodeStateMsg, logPrefix string, proto string, name string, nodeConfig map[string]interface{}, hcConfigs []interface{}) *LBNode {
-	if nodeConfig[proto] == nil {
+func newLBNode(lbPool *LBPool, logPrefix string, proto string, name string, nodeConfig map[string]interface{}, hcConfigs []interface{}) *LBNode {
+	// Skip Nodes without IP Address
+	if nodeConfig["ip"+proto] == nil {
 		return nil
 	}
 
 	// Initialize new LB Node
 	lbNode := new(LBNode)
-	lbNode.ipAddress = nodeConfig[proto].(string)
+	lbNode.lbPool = lbPool
+	lbNode.ipAddress = nodeConfig["ip"+proto].(string)
 	lbNode.logPrefix = fmt.Sprintf(logPrefix+"lb_node: %s ", name)
 	lbNode.stopChan = make(chan bool)
 	lbNode.hcChan = make(chan healthcheck.HCResultMsg)
-	lbNode.poolChan = poolChan
 	lbNode.hcsResults = healthcheck.HCsResults{}
 
 	logger.Info.Printf(lbNode.logPrefix + "created")
@@ -67,24 +71,26 @@ func newLBNode(poolChan chan NodeStateMsg, logPrefix string, proto string, name 
 	return lbNode
 }
 
+// nodeLogic is trigerred when state of any of HCs of this Node changes.
+// Access to this LB Node must be protected because it can be accessed from
+// another node's run() for lbPool.poolLogic()
 func (lbn *LBNode) nodeLogic(hcrm healthcheck.HCResultMsg) {
+	lbn.lbPool.Lock()
 
+	lbn.checked = true
 	lbn.hcsResults.Update(hcrm)
 	goodHCs, allHCs := lbn.hcsResults.GoodHCs()
 
-	if goodHCs == allHCs {
+	if goodHCs == allHCs && lbn.state != NodeUp {
 		logger.Info.Printf(lbn.logPrefix+"%d/%d healthchecks good action: up", goodHCs, allHCs)
-		lbn.poolChan <- NodeStateMsg{
-			state:  NodeUp,
-			lbNode: lbn,
-		}
-	} else {
+		lbn.state = NodeUp
+		lbn.lbPool.poolLogic(lbn)
+	} else if goodHCs != allHCs && lbn.state != NodeDown {
 		logger.Info.Printf(lbn.logPrefix+"%d/%d healthchecks good action: down", goodHCs, allHCs)
-		lbn.poolChan <- NodeStateMsg{
-			state:  NodeDown,
-			lbNode: lbn,
-		}
+		lbn.state = NodeDown
+		lbn.lbPool.poolLogic(lbn)
 	}
+	lbn.lbPool.Unlock()
 }
 
 // Run is the main loop of LB Node. It receives messages from parent and children.
