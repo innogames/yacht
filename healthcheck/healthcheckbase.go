@@ -1,7 +1,6 @@
 package healthcheck
 
 import (
-	"context"
 	"github.com/innogames/yacht/logger"
 	"sync"
 	"time"
@@ -9,6 +8,9 @@ import (
 
 // HCBase is a structure holding properties shared between all healthcheck types.
 type HCBase struct {
+	// Implemented interface
+	HealthCheck
+
 	// Configuration
 	hcType         string
 	ipAddress      string
@@ -27,10 +29,6 @@ type HCBase struct {
 	logPrefix  string
 	lbNodeChan chan HCResultMsg
 	stopChan   chan bool
-	hcIndex    int
-
-	// Implemented interface
-	HealthCheck
 }
 
 func jsonIntDefault(json JSONMap, key string, dflt int) int {
@@ -41,12 +39,11 @@ func jsonIntDefault(json JSONMap, key string, dflt int) int {
 }
 
 // configure sets up base properties of a healthcheck with reasonable defaults.
-func (hcb *HCBase) configure(lbNodeChan chan HCResultMsg, hcIndex int, json JSONMap, ipAddress string) {
+func (hcb *HCBase) configure(lbNodeChan chan HCResultMsg, json JSONMap, ipAddress string) {
 	// logPrefix is not configured here because it might be slightly different for each type of HealthCheck
 	hcb.stopChan = make(chan bool)
 	hcb.lbNodeChan = lbNodeChan
 	hcb.ipAddress = ipAddress
-	hcb.hcIndex = hcIndex
 
 	// Read configuration parameters from JSON or provide a reasonable default.
 	hcb.maxFailed = jsonIntDefault(json, "maxFailed", 3)
@@ -57,14 +54,14 @@ func (hcb *HCBase) configure(lbNodeChan chan HCResultMsg, hcIndex int, json JSON
 // run starts operation of a healthcheck. It is an endless loop running in a goroutine
 // which performs the real checking operation in scheduled time intervals. It can be
 // terminated by sending a boolean over stopChan.
-func (hcb *HCBase) run(wg *sync.WaitGroup, do func(chan HCResultError) context.CancelFunc) {
+func (hcb *HCBase) run(wg *sync.WaitGroup, hc HealthCheck) {
 	wg.Add(1)
 	defer wg.Done()
 
 	for {
 		// Prepare a chanel to receive results from and do the Healthcheck.
 		resChan := make(chan HCResultError)
-		cancel := do(resChan)
+		cancel := hc.do(resChan)
 
 		// Wait for finish of do() or end of program.
 		select {
@@ -75,7 +72,7 @@ func (hcb *HCBase) run(wg *sync.WaitGroup, do func(chan HCResultError) context.C
 				logger.Info.Printf(hcb.logPrefix + "action: passed")
 				hcb.lbNodeChan <- HCResultMsg{
 					result: HCGood,
-					index:  hcb.hcIndex,
+					HC:     hc,
 				}
 			}
 			if lastState != HCGood && hcb.failures < hcb.maxFailed {
@@ -84,7 +81,7 @@ func (hcb *HCBase) run(wg *sync.WaitGroup, do func(chan HCResultError) context.C
 				if hcb.failures == hcb.maxFailed {
 					hcb.lbNodeChan <- HCResultMsg{
 						result: HCBad,
-						index:  hcb.hcIndex,
+						HC:     hc,
 					}
 				}
 			}

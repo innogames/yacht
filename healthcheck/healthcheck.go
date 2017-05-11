@@ -1,6 +1,7 @@
 package healthcheck
 
 import (
+	"context"
 	"github.com/innogames/yacht/logger"
 	"sync"
 )
@@ -12,32 +13,33 @@ type JSONMap map[string]interface{}
 type HealthCheck interface {
 	Run(wg *sync.WaitGroup)
 	Stop()
+	configure(lbNodeChan chan HCResultMsg, json JSONMap, ipAddress string)
+	do(hcr chan (HCResultError)) context.CancelFunc
 }
 
 // NewHealthCheck is an object factory returning a proper HealtCheck object depending
 // in configuration it reads from JSON and starts its main goroutine.
-func NewHealthCheck(lbNodeChan chan HCResultMsg, hcIndex int, logPrefix string, json JSONMap, ipAddress string) *HealthCheck {
+func NewHealthCheck(lbNodeChan chan HCResultMsg, logPrefix string, json JSONMap, ipAddress string) HealthCheck {
 	hctype := json["type"].(string)
 
 	var hc HealthCheck
-	var hcb *HCBase
 
 	switch hctype {
 	case "dummy":
-		hc, hcb = newHCDummy(logPrefix, json)
+		hc = newHCDummy(logPrefix, json)
 	case "http":
-		hc, hcb = newHCHttp(logPrefix, json)
+		hc = newHCHttp(logPrefix, json)
 	case "https":
-		hc, hcb = newHCHttp(logPrefix, json)
+		hc = newHCHttp(logPrefix, json)
 	case "ping":
-		hc, hcb = newHCPing(json)
+		hc = newHCPing(json)
 	case "script":
-		hc, hcb = newHCScript(json)
+		hc = newHCScript(json)
 	default:
 		logger.Error.Printf(logPrefix+"Unknown HealthCheck type %s", hctype)
 		return nil
 	}
-	hcb.configure(lbNodeChan, hcIndex, json, ipAddress)
+	hc.configure(lbNodeChan, json, ipAddress)
 
-	return &hc
+	return hc
 }

@@ -22,7 +22,7 @@ type LBNode struct {
 	stopChan     chan bool
 	hcChan       chan healthcheck.HCResultMsg // incoming channel over which HCs will tell us their hard state
 	poolChan     chan NodeStateMsg            // outgoing channel over wich this Node reports state to Pool
-	healthChecks []*healthcheck.HealthCheck
+	healthChecks []healthcheck.HealthCheck
 }
 
 func newLBNode(poolChan chan NodeStateMsg, logPrefix string, proto string, name string, nodeConfig map[string]interface{}, hcConfigs []interface{}) *LBNode {
@@ -41,15 +41,13 @@ func newLBNode(poolChan chan NodeStateMsg, logPrefix string, proto string, name 
 
 	logger.Info.Printf(lbNode.logPrefix + "created")
 
-	hcIndex := 0
 	// First we create HCs. They are allowed to fail creation for example because
 	// of unknow type or other trouble reading their configuration.
 	for _, hcConfig := range hcConfigs {
-		hc := healthcheck.NewHealthCheck(lbNode.hcChan, hcIndex, lbNode.logPrefix, hcConfig.(map[string]interface{}), lbNode.ipAddress)
+		hc := healthcheck.NewHealthCheck(lbNode.hcChan, lbNode.logPrefix, hcConfig.(map[string]interface{}), lbNode.ipAddress)
 		if hc != nil {
 			lbNode.healthChecks = append(lbNode.healthChecks, hc)
-			lbNode.hcsResults[hcIndex] = healthcheck.HCResult(healthcheck.HCUnknown)
-			hcIndex++
+			lbNode.hcsResults[hc] = healthcheck.HCResult(healthcheck.HCUnknown)
 		}
 	}
 
@@ -61,9 +59,9 @@ func newLBNode(poolChan chan NodeStateMsg, logPrefix string, proto string, name 
 		"result": healthcheck.HCGood,
 	}
 	if len(lbNode.healthChecks) == 0 {
-		hc := healthcheck.NewHealthCheck(lbNode.hcChan, hcIndex, lbNode.logPrefix, dummyConfig, lbNode.ipAddress)
+		hc := healthcheck.NewHealthCheck(lbNode.hcChan, lbNode.logPrefix, dummyConfig, lbNode.ipAddress)
 		lbNode.healthChecks = append(lbNode.healthChecks, hc)
-		lbNode.hcsResults[hcIndex] = healthcheck.HCResult(healthcheck.HCUnknown)
+		lbNode.hcsResults[hc] = healthcheck.HCResult(healthcheck.HCUnknown)
 	}
 
 	return lbNode
@@ -93,7 +91,7 @@ func (lbn *LBNode) nodeLogic(hcrm healthcheck.HCResultMsg) {
 func (lbn *LBNode) run(wg *sync.WaitGroup) {
 
 	for _, hc := range lbn.healthChecks {
-		go (*hc).Run(wg)
+		go hc.Run(wg)
 	}
 
 	for {
@@ -112,7 +110,7 @@ func (lbn *LBNode) run(wg *sync.WaitGroup) {
 // first it terminates operation of all children and then of itself.
 func (lbn *LBNode) stop() {
 	for _, hc := range lbn.healthChecks {
-		(*hc).Stop()
+		hc.Stop()
 	}
 	lbn.stopChan <- true
 }

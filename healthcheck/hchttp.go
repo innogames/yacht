@@ -13,7 +13,7 @@ import (
 
 // HCHttp stores all properties of a HTTP or HTTPS healthcheck.
 type HCHttp struct {
-	HCBase
+	*HCBase
 	host    string
 	url     string
 	okCodes []int
@@ -28,8 +28,9 @@ func (e *httpCodeError) Error() string {
 }
 
 // NewHCHttp creates new HTTP or HTTPs healthcheck struct and populates it with data from Json config
-func newHCHttp(logPrefix string, json JSONMap) (*HCHttp, *HCBase) {
+func newHCHttp(logPrefix string, json JSONMap) *HCHttp {
 	hc := new(HCHttp)
+	hc.HCBase = &HCBase{}
 	hc.hcType = json["type"].(string)
 
 	if host, ok := json["host"].(string); ok {
@@ -53,7 +54,7 @@ func newHCHttp(logPrefix string, json JSONMap) (*HCHttp, *HCBase) {
 	}
 
 	logger.Info.Printf(hc.logPrefix + "created")
-	return hc, &hc.HCBase
+	return hc
 }
 
 // check performs the healthckeck. It is called from the main goroutine of HealthcheckBase.
@@ -119,7 +120,7 @@ func (hc *HCHttp) do(hcr chan (HCResultError)) context.CancelFunc {
 
 // Run starts operation of this healthcheck, in fact it calls the Base class.
 func (hc *HCHttp) Run(wg *sync.WaitGroup) {
-	hc.HCBase.run(wg, hc.do)
+	hc.HCBase.run(wg, hc)
 }
 
 // Stop terminates this healthcheck, in fact it calls the Base class.

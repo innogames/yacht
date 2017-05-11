@@ -3,7 +3,7 @@ package healthcheck
 // HCResultMsg is used to send result back to LB Node
 type HCResultMsg struct {
 	result HCResult
-	index  int
+	HC     HealthCheck
 }
 
 // HCResult represents result of a healthcheck, see below for know enum variables
@@ -28,7 +28,7 @@ type HCResultError struct {
 }
 
 // HCsResults is used to store last result of many checks.
-type HCsResults map[int]HCResult
+type HCsResults map[HealthCheck]HCResult
 
 // GoodHCs counts good and all HCs.
 func (hcsrs *HCsResults) GoodHCs() (int, int) {
@@ -44,6 +44,6 @@ func (hcsrs *HCsResults) GoodHCs() (int, int) {
 }
 
 // Update updates HCsResults with information from a HCResultMsg
-func (hcsrs *HCsResults) Update(nsc HCResultMsg) {
-	(*hcsrs)[nsc.index] = nsc.result
+func (hcsrs *HCsResults) Update(hcrm HCResultMsg) {
+	(*hcsrs)[hcrm.HC] = hcrm.result
 }

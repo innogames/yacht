@@ -9,13 +9,14 @@ import (
 
 // HCDummy stores all properties of a dummy healthcheck.
 type HCDummy struct {
+	*HCBase
 	result HCResult
-	HCBase
 }
 
 // NewHCDummy creates new ping healthcheck struct and populates it with data from Json config.
-func newHCDummy(logPrefix string, json JSONMap) (*HCDummy, *HCBase) {
+func newHCDummy(logPrefix string, json JSONMap) *HCDummy {
 	hc := new(HCDummy)
+	hc.HCBase = &HCBase{}
 	hc.hcType = json["type"].(string)
 
 	if result, ok := json["result"].(HCResult); ok {
@@ -25,7 +26,7 @@ func newHCDummy(logPrefix string, json JSONMap) (*HCDummy, *HCBase) {
 	hc.logPrefix = logPrefix + fmt.Sprintf("healthcheck: %s response: %s ", hc.hcType, hc.result)
 
 	logger.Info.Printf(hc.logPrefix + "created")
-	return hc, &hc.HCBase
+	return hc
 }
 
 // do performs the healthckeck. It is called from the main goroutine of HealthcheckBase.
@@ -42,7 +43,7 @@ func (hc *HCDummy) do(hcr chan (HCResultError)) context.CancelFunc {
 
 // Run starts operation of this healthcheck, in fact it calls the Base class.
 func (hc *HCDummy) Run(wg *sync.WaitGroup) {
-	hc.HCBase.run(wg, hc.do)
+	hc.HCBase.run(wg, hc)
 }
 
 // Stop terminates this healthcheck, in fact it calls the Base class.
