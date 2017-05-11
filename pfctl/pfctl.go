@@ -29,9 +29,12 @@ func NewPFctl(wg *sync.WaitGroup, lbPools []*lbpool.LBPool) *PFctl {
 
 func (pfctl *PFctl) do() {
 	for _, lbPool := range pfctl.lbPools {
-		poolName, poolNodes := lbPool.GetWantedNodes()
+		poolName, poolNodes, logPrefix := lbPool.GetWantedNodes()
 		if poolNodes != nil {
-			logger.Debug.Printf("Pool %s requires change: %s", poolName, poolNodes)
+			err := pfctlSyncTable(poolName, poolNodes)
+			if err != nil {
+				logger.Error.Printf(logPrefix + err.Error())
+			}
 		}
 	}
 }
