@@ -18,6 +18,7 @@ type LBNode struct {
 	hcsResults healthcheck.HCsResults
 	state      NodeState
 	primary    bool
+	reason     NodeReason
 
 	// Communication
 	logPrefix    string
@@ -43,6 +44,7 @@ func newLBNode(lbPool *LBPool, logPrefix string, proto string, name string, node
 	lbNode.hcChan = make(chan healthcheck.HCResultMsg)
 	lbNode.hcsResults = healthcheck.HCsResults{}
 	lbNode.state = NodeUnknown
+	lbNode.reason = ReasonNone
 	lbNode.primary = true
 
 	logger.Info.Printf(lbNode.logPrefix + "created")
@@ -93,6 +95,7 @@ func (lbn *LBNode) nodeLogic(hcrm healthcheck.HCResultMsg) {
 			lbn.lbPool.poolLogic(lbn)
 		} else if goodHCs != allHCs && lbn.state != NodeDown {
 			logger.Info.Printf(lbn.logPrefix+"%d/%d healthchecks good action: down", goodHCs, allHCs)
+			lbn.reason = ReasonNone
 			lbn.state = NodeDown
 			lbn.lbPool.poolLogic(lbn)
 		}

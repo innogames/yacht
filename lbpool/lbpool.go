@@ -94,14 +94,25 @@ func (lbp *LBPool) poolLogic(lbNode *LBNode) {
 	var upNodes, forcedNodes, allNodes int
 	var wantedNodes []*LBNode
 
-	// Add nodes while satisfying maxNodes if it is set. Initial nodes don't
-	// matter at this point becaue it is always better to replace them with
-	// something that in fact has passed healthchecs.
+	// Add nodes while satisfying maxNodes if it is set. First add
+	// nodes which were added before in order to avoid rebalancing.
 	for _, lbn := range lbp.lbNodes {
-		allNodes++
-		if lbn.primary && lbn.state == NodeUp && (lbp.maxNodes == 0 || upNodes <= lbp.maxNodes) {
-			wantedNodes = append(wantedNodes, lbn)
-			upNodes++
+		if lbn.reason == ReasonMaxNodes {
+			allNodes++
+			if lbn.primary && lbn.state == NodeUp && (lbp.maxNodes == 0 || upNodes < lbp.maxNodes) {
+				wantedNodes = append(wantedNodes, lbn)
+				upNodes++
+			}
+		}
+	}
+	for _, lbn := range lbp.lbNodes {
+		if lbn.reason != ReasonMaxNodes {
+			allNodes++
+			if lbn.primary && lbn.state == NodeUp && (lbp.maxNodes == 0 || upNodes < lbp.maxNodes) {
+				wantedNodes = append(wantedNodes, lbn)
+				lbn.reason = ReasonMaxNodes
+				upNodes++
+			}
 		}
 	}
 

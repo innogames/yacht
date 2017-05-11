@@ -18,6 +18,17 @@ const (
 	NodeUp
 )
 
+
+// NodeReason keeps information why node was included or excluded
+type NodeReason int
+
+const (
+	// ReasonUnknown is the default value
+	ReasonNone NodeReason = iota
+	// ReasonMaxNodes means that this node was added while satisfying MaxNodes
+	ReasonMaxNodes
+)
+
 // NodesStates is used to store state of many LN Nodes.
 type NodesStates map[*LBNode]NodeState
 
