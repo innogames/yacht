@@ -148,6 +148,7 @@ func (lbp *LBPool) poolLogic(lbNode *LBNode) {
 // GetWantedNodes returns information required to configure loadbalancing.
 // If there was no change, it returns nil as list.
 func (lbp *LBPool) GetWantedNodes() (string, []string) {
+	defer lbp.Unlock()
 	lbp.Lock()
 	if lbp.wantedChanged == false {
 		return lbp.pfName, nil
@@ -157,7 +158,6 @@ func (lbp *LBPool) GetWantedNodes() (string, []string) {
 	for _, lbn := range lbp.wantedNodes {
 		ret = append(ret, lbn.ipAddress)
 	}
-	lbp.Unlock()
 	return lbp.pfName, ret
 }
 

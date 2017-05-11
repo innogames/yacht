@@ -79,6 +79,7 @@ func newLBNode(lbPool *LBPool, logPrefix string, proto string, name string, node
 // Access to this LB Node must be protected because it can be accessed from
 // another node's run() for lbPool.poolLogic()
 func (lbn *LBNode) nodeLogic(hcrm healthcheck.HCResultMsg) {
+	defer lbn.lbPool.Unlock()
 	lbn.lbPool.Lock()
 
 	lbn.hcsResults.Update(hcrm)
@@ -96,7 +97,6 @@ func (lbn *LBNode) nodeLogic(hcrm healthcheck.HCResultMsg) {
 			lbn.lbPool.poolLogic(lbn)
 		}
 	}
-	lbn.lbPool.Unlock()
 }
 
 // Run is the main loop of LB Node. It receives messages from parent and children.
