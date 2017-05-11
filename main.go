@@ -12,6 +12,7 @@ import (
 
 	"github.com/innogames/yacht/lbpool"
 	"github.com/innogames/yacht/logger"
+	"github.com/innogames/yacht/pfctl"
 )
 
 // AppState holds some variables which otherwise would be considered global.
@@ -28,6 +29,7 @@ type AppState struct {
 	stopHealthChecks chan bool
 	programRunning   bool
 	wg               *sync.WaitGroup
+	pfctl            *pfctl.PFctl
 
 	// LB Pools
 	lbPools []*lbpool.LBPool
@@ -125,6 +127,7 @@ func (appState *AppState) mainLoop() {
 		// Load configuration and run loaded LB Pools.
 		appState.loadConfig()
 		appState.runLBPools()
+		appState.pfctl = pfctl.NewPFctl(appState.wg, appState.lbPools)
 
 		// Wait for a channel message which will terminate all running checks.
 		select {
@@ -132,6 +135,7 @@ func (appState *AppState) mainLoop() {
 			for _, lbPool := range appState.lbPools {
 				lbPool.Stop()
 			}
+			appState.pfctl.Stop()
 		}
 		// Wait for healthchecks to be really finished.
 		// This means: wait for wg counter to reach 0.
