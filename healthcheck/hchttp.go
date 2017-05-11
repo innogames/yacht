@@ -73,8 +73,15 @@ func (hc *HCHttp) do(hcr chan (HCResultError)) context.CancelFunc {
 		Timeout: time.Millisecond * time.Duration(hc.HCBase.timeout),
 	}
 
+	var ipAddress string
+	if hc.HCBase.ipAddress.To4() == nil {
+		ipAddress = "[" + hc.HCBase.ipAddress.String() + "]"
+	} else {
+		ipAddress = hc.HCBase.ipAddress.String()
+	}
+
 	// Build HTTP request
-	req, err := http.NewRequest("HEAD", hc.hcType+"://"+hc.HCBase.ipAddress+hc.url, nil)
+	req, err := http.NewRequest("HEAD", hc.hcType+"://"+ipAddress+hc.url, nil)
 	if err != nil {
 		logger.Error.Printf(hc.logPrefix + err.Error())
 		return nil

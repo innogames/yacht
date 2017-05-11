@@ -2,6 +2,7 @@ package healthcheck
 
 import (
 	"github.com/innogames/yacht/logger"
+	"net"
 	"sync"
 	"time"
 )
@@ -13,7 +14,7 @@ type HCBase struct {
 
 	// Configuration
 	hcType         string
-	ipAddress      string
+	ipAddress      net.IP
 	interval       int
 	timeout        int
 	maxFailed      int
@@ -43,7 +44,7 @@ func (hcb *HCBase) configure(lbNodeChan chan HCResultMsg, json JSONMap, ipAddres
 	// logPrefix is not configured here because it might be slightly different for each type of HealthCheck
 	hcb.stopChan = make(chan bool)
 	hcb.lbNodeChan = lbNodeChan
-	hcb.ipAddress = ipAddress
+	hcb.ipAddress = net.ParseIP(ipAddress)
 
 	// Read configuration parameters from JSON or provide a reasonable default.
 	hcb.maxFailed = jsonIntDefault(json, "maxFailed", 3)
