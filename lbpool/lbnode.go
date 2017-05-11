@@ -17,8 +17,7 @@ type LBNode struct {
 	// Operation
 	hcsResults healthcheck.HCsResults
 	state      NodeState
-	reason     NodeReason
-	checked    bool // stores information if this node was ever checked
+	primary    bool
 
 	// Communication
 	logPrefix    string
@@ -42,6 +41,8 @@ func newLBNode(lbPool *LBPool, logPrefix string, proto string, name string, node
 	lbNode.stopChan = make(chan bool)
 	lbNode.hcChan = make(chan healthcheck.HCResultMsg)
 	lbNode.hcsResults = healthcheck.HCsResults{}
+	lbNode.state = NodeUnknown
+	lbNode.primary = true
 
 	logger.Info.Printf(lbNode.logPrefix + "created")
 
@@ -68,6 +69,8 @@ func newLBNode(lbPool *LBPool, logPrefix string, proto string, name string, node
 		lbNode.hcsResults[hc] = healthcheck.HCResult(healthcheck.HCUnknown)
 	}
 
+	// TODO: Initalize node state from loadbalancer
+
 	return lbNode
 }
 
@@ -77,7 +80,6 @@ func newLBNode(lbPool *LBPool, logPrefix string, proto string, name string, node
 func (lbn *LBNode) nodeLogic(hcrm healthcheck.HCResultMsg) {
 	lbn.lbPool.Lock()
 
-	lbn.checked = true
 	lbn.hcsResults.Update(hcrm)
 	goodHCs, allHCs, unknownHCs := lbn.hcsResults.GoodHCs()
 

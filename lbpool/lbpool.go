@@ -9,10 +9,13 @@ import (
 // LBPool represents the object which receives the traffic and balances it between nodes.
 type LBPool struct {
 	// Properties
-	name      string
-	ipAddress string
-	lbNodes   []*LBNode
-	pfName    string
+	name           string
+	ipAddress      string
+	lbNodes        []*LBNode
+	pfName         string
+	minNodes       int
+	maxNodes       int
+	minNodesAction MinNodesAction
 
 	// Operation
 	sync.Mutex
@@ -41,7 +44,25 @@ func NewLBPool(proto string, name string, json map[string]interface{}) *LBPool {
 	lbPool.pfName = json["pf_name"].(string) + "_" + proto
 	lbPool.ipAddress = ipAddress.(string)
 	lbPool.logPrefix = fmt.Sprintf("lb_pool: %s ", lbPool.name)
-	logger.Info.Printf(lbPool.logPrefix + "created")
+
+	// Configure min and max nodes behaviour
+	if minNodes, ok := json["min_nodes"].(int); ok {
+		lbPool.minNodes = minNodes
+	} else {
+		lbPool.minNodes = 0
+	}
+
+	if maxNodes, ok := json["max_nodes"].(int); ok {
+		lbPool.maxNodes = maxNodes
+	} else {
+		lbPool.maxNodes = 0
+	}
+
+	if lbPool.maxNodes < lbPool.minNodes {
+		lbPool.maxNodes = lbPool.minNodes
+	}
+
+	logger.Info.Printf(lbPool.logPrefix+"min %d max %d created", lbPool.minNodes, lbPool.maxNodes)
 
 	// Configuration of Healthchecks for this LB Pool will be passed to all nodes.
 	// They will make their own HealthChecks from it.
@@ -60,8 +81,64 @@ func NewLBPool(proto string, name string, json map[string]interface{}) *LBPool {
 // poolLogic handles adding and removing nodes.
 // It is called from LB Node which should have already locked LB Pool struct.
 func (lbp *LBPool) poolLogic(lbNode *LBNode) {
+	// First check if state of all Nodes is known
+	for _, lbn := range lbp.lbNodes {
+		if lbn.state == NodeUnknown {
+			return
+		}
+	}
+
+	// Mark wanted set as dirty.
 	lbp.wantedChanged = true
-	//logger.Info.Printf(lbp.logPrefix+"%d/%d nodes up", upNodes, allNodes)
+
+	var allNodes, upNodes int
+	var wantedNodes []*LBNode
+
+	// Add nodes while satisfying maxNodes if it is set. Initial nodes don't
+	// matter at this point becaue it is always better to replace them with
+	// something that in fact has passed healthchecs.
+	for _, lbn := range lbp.lbNodes {
+		allNodes++
+		if lbn.primary && lbn.state == NodeUp && (lbp.maxNodes == 0 || upNodes <= lbp.maxNodes) {
+			wantedNodes = append(wantedNodes, lbn)
+			upNodes++
+		}
+	}
+
+	// Now satisfy minNodes depending on its configuration
+	if lbp.minNodes > 0 && upNodes < lbp.minNodes {
+
+		if lbp.minNodesAction == ForceDown {
+			// ForceDown means that wantedNodes must be empty if not enough
+			// up nodes are found.
+			wantedNodes = []*LBNode{}
+		} else if lbp.minNodesAction == ForceUp {
+			// ForceUp means that any nodes must be added to wantedNodes
+			// even if they are down. Start with node for which this function
+			// was called. This is the the last one which was alive, so let's
+			// not change loadbalancing.
+			if lbNode.primary {
+				wantedNodes = append(wantedNodes, lbNode)
+			}
+			// Then try any other nodes.
+			for _, lbn := range lbp.lbNodes {
+				if lbn.primary && upNodes < lbp.minNodes {
+					wantedNodes = append(wantedNodes, lbn)
+					upNodes++
+				}
+			}
+		} else if lbp.minNodesAction == BackupPool {
+			for _, lbn := range lbp.lbNodes {
+				if lbn.primary == false && lbn.state == NodeUp {
+					wantedNodes = append(wantedNodes, lbn)
+					upNodes++
+				}
+			}
+		}
+	}
+
+	lbp.wantedNodes = wantedNodes
+	logger.Info.Printf(lbp.logPrefix+"%d/%d min %d max %d nodes up", upNodes, allNodes, lbp.minNodes, lbp.maxNodes)
 }
 
 // GetWantedNodes returns information required to configure loadbalancing.

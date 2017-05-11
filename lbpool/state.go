@@ -18,20 +18,6 @@ const (
 	NodeUp
 )
 
-// NodeReason represents reason of last decission of including or excluding Node in Pool.
-type NodeReason int
-
-const (
-	// NodeUnknown means there was no decission made
-	ReasonUnknown NodeReason = iota
-	// NodeMinNodes means that node was forcefully included to satisfy min_nodes
-	ReasonMinNodes
-	// NodeMaxNodes means that node was forcefully excluded to satisfy max_nodes
-	ReasonMaxNodes
-	// NodeInital means that node was found already active when Yacht started
-	ReasonInitial
-)
-
 // NodesStates is used to store state of many LN Nodes.
 type NodesStates map[*LBNode]NodeState
 
